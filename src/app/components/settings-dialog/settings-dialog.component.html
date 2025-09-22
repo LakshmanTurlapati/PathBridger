@@ -1,0 +1,114 @@
+<h2 mat-dialog-title>Settings</h2>
+
+<mat-dialog-content>
+  <form [formGroup]="settingsForm" class="settings-form">
+    
+    <!-- API Configuration Section -->
+    <div class="section">
+      <h3 class="section-title">
+        <mat-icon>key</mat-icon>
+        API Configuration
+      </h3>
+      
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Grok API Key</mat-label>
+        <input 
+          matInput 
+          [type]="hideApiKey ? 'password' : 'text'"
+          formControlName="grokApiKey"
+          placeholder="xai-..."
+          autocomplete="off">
+        <mat-icon matSuffix (click)="hideApiKey = !hideApiKey" class="clickable">
+          {{ hideApiKey ? 'visibility_off' : 'visibility' }}
+        </mat-icon>
+        <mat-hint>Get your API key from <a href="https://x.ai/api" target="_blank">x.ai/api</a></mat-hint>
+        <mat-error *ngIf="apiKeyError">{{ apiKeyError }}</mat-error>
+      </mat-form-field>
+
+      <div class="api-actions">
+        <button 
+          mat-stroked-button 
+          type="button"
+          (click)="testConnection()"
+          [disabled]="isTestingConnection || !settingsForm.get('grokApiKey')?.value">
+          <mat-icon>cloud_sync</mat-icon>
+          {{ isTestingConnection ? 'Testing...' : 'Test Connection' }}
+        </button>
+        
+        <button 
+          mat-stroked-button 
+          type="button"
+          color="warn"
+          (click)="clearApiKey()"
+          [disabled]="!settingsForm.get('grokApiKey')?.value">
+          <mat-icon>clear</mat-icon>
+          Clear Key
+        </button>
+      </div>
+    </div>
+
+    <!-- Appearance Section -->
+    <div class="section">
+      <h3 class="section-title">
+        <mat-icon>palette</mat-icon>
+        Appearance
+      </h3>
+      
+      <mat-form-field appearance="outline" class="full-width">
+        <mat-label>Theme</mat-label>
+        <mat-select formControlName="theme">
+          <mat-option value="light">
+            <mat-icon>light_mode</mat-icon>
+            Light
+          </mat-option>
+          <mat-option value="dark">
+            <mat-icon>dark_mode</mat-icon>
+            Dark
+          </mat-option>
+          <mat-option value="auto">
+            <mat-icon>brightness_auto</mat-icon>
+            Auto (System)
+          </mat-option>
+        </mat-select>
+      </mat-form-field>
+    </div>
+
+    <!-- Behavior Section -->
+    <div class="section">
+      <h3 class="section-title">
+        <mat-icon>settings_applications</mat-icon>
+        Behavior
+      </h3>
+      
+      <div class="toggle-option">
+        <mat-slide-toggle formControlName="autoSaveProgress">
+          Auto-save progress
+        </mat-slide-toggle>
+        <p class="toggle-description">
+          Automatically save your work progress to browser storage
+        </p>
+      </div>
+    </div>
+
+    <!-- Info Section -->
+    <div class="info-section">
+      <mat-icon>info</mat-icon>
+      <div class="info-content">
+        <p><strong>Privacy Note:</strong> Your API key is encrypted and stored locally in your browser. It is never sent to any server except x.ai for API requests.</p>
+        <p><strong>Security:</strong> Always keep your API key private and never share it with others.</p>
+      </div>
+    </div>
+
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()">Cancel</button>
+  <button 
+    mat-raised-button 
+    color="primary" 
+    (click)="saveSettings()"
+    [disabled]="settingsForm.invalid">
+    Save Settings
+  </button>
+</mat-dialog-actions>

@@ -1,0 +1,658 @@
+{
+  "timestamp": "2025-09-14T20:33:28.132450",
+  "totalCourses": 3,
+  "courses": [
+    {
+      "id": "BUAN_6320",
+      "code": "BUAN6320",
+      "number": "BUAN 6320",
+      "title": "Database Foundations for Business Analytics / MIS 6326 Data Management",
+      "category": "Core - Database",
+      "syllabusFile": "Fall_2025_SyllabusTable_V1.0_BUAN6320.005.docx",
+      "contentLength": 1600,
+      "syllabus": {
+        "courseCode": "BUAN6320",
+        "courseNumber": "BUAN 6320",
+        "courseTitle": "Database Foundations for Business Analytics / MIS 6326 Data Management",
+        "category": "Core - Database",
+        "rawContent": "Class Date | Topic(s) | HW, Quizzes and Projects (All due dates end at 11:59 pm)\nWeek 1\n  August 29 | Course Overview\nOverview of Relational Databases\nWeek 2\nSeptember 5 | MySQL Overview\nWrite SQL \u2013 Querying one table (eBook 1)\nWeek 3 \nSeptember 12 | Project Teams to meet for project plan.\nSQL | Form Groups\nHW1: SQL - In eLearning\nWeek 4\nSeptember 19 | Write SQL: Querying multiple tables. \nInner Joins/Outer Joins | HW 1: SQL \u2013 DUE \nGroup Formation DUE\nWeek 5\nSeptember 26 | Project Plan discussion\nInstallation of Mongo DB (Look ahead)\nGroup By/ Having Clauses | Quiz 1\nHW 2: SQL \u2013 In eLearning\nWeek 6\nOctober 3 | Write SQL: Modifying Data \nReview eBook 1 and eBook 2\nWrite SQL: Stored Programs-Procedures | HW2: - SQL \u2013 DUE\nWeek 7\nOctober 10 | Write SQL: Concurrency and Transaction Management\nWrite SQL: Stored Programs-Functions\nWeek 8\nOctober 17 | Review of topics | All Topics from week 1-7 session\nHW 3: SQL: In eLearning\nWeek 9\nOctober 24 | Representing Events and Transactions     \nwith Data Modeling\nWrite SQL: Stored Programs-Triggers | Quiz 2 \nHW3: SQL \u2013 DUE\nWeek 10\n  October 31 | SQL Wrap-up\nProject Discussion\nWeek 11\nNovember 7 | Introduction to NoSQL Databases | HW 4: Data Modeling\nWeek 12\n   November 14 | MongoDB\nWrite NoSQL queries using MongoDB \nEmbedded SQL | HW 4: DUE\nWeek 13\nNovember 21 | PROJECT PRESENTATION BY ALL | Project Write-up: DUE\nWeek 14\nNovember 28 | Thanksgiving Holidays (No Class) | HW 5: MongoDB: In e-learning\nWeek 15\nDecember 5 | Review and Quiz 3 | HW 5: DUE\nQuiz 3\nWeek 16\nDecember 7 | Final Project Submission: DUE\nFinal Project Video Submission: DUE",
+        "weeklySchedule": [
+          {
+            "week": 1,
+            "date": "August 29",
+            "topics": [
+              "Course Overview"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 2,
+            "date": "September 5",
+            "topics": [
+              "MySQL Overview"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 3,
+            "date": "September 12",
+            "topics": [
+              "Project Teams to meet for project plan."
+            ],
+            "assignments": null
+          },
+          {
+            "week": 3,
+            "date": "Week 3",
+            "topics": [
+              "Form Groups"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 4,
+            "date": "September 19",
+            "topics": [
+              "Write SQL: Querying multiple tables."
+            ],
+            "assignments": null
+          },
+          {
+            "week": 4,
+            "date": "Week 4",
+            "topics": [
+              "HW 1: SQL \u2013 DUE"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 5,
+            "date": "September 26",
+            "topics": [
+              "Project Plan discussion"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 5,
+            "date": "Week 5",
+            "topics": [
+              "Quiz 1"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 6,
+            "date": "October 3",
+            "topics": [
+              "Write SQL: Modifying Data"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 6,
+            "date": "Week 6",
+            "topics": [
+              "HW2: - SQL \u2013 DUE"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 7,
+            "date": "October 10",
+            "topics": [
+              "Write SQL: Concurrency and Transaction Management"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 9,
+            "date": "October 24",
+            "topics": [
+              "Representing Events and Transactions"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 9,
+            "date": "Week 9",
+            "topics": [
+              "Quiz 2"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 10,
+            "date": "October 31",
+            "topics": [
+              "SQL Wrap-up"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 11,
+            "date": "November 7",
+            "topics": [
+              "Introduction to NoSQL Databases"
+            ],
+            "assignments": "HW 4: Data Modeling"
+          },
+          {
+            "week": 12,
+            "date": "November 14",
+            "topics": [
+              "MongoDB"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 12,
+            "date": "Week 12",
+            "topics": [
+              "HW 4: DUE"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 13,
+            "date": "November 21",
+            "topics": [
+              "PROJECT PRESENTATION BY ALL"
+            ],
+            "assignments": "Project Write-up: DUE"
+          },
+          {
+            "week": 14,
+            "date": "November 28",
+            "topics": [
+              "Thanksgiving Holidays (No Class)"
+            ],
+            "assignments": "HW 5: MongoDB: In e-learning"
+          },
+          {
+            "week": 15,
+            "date": "December 5",
+            "topics": [
+              "Review and Quiz 3"
+            ],
+            "assignments": "HW 5: DUE"
+          },
+          {
+            "week": 16,
+            "date": "December 7",
+            "topics": [
+              "Final Project Submission: DUE"
+            ],
+            "assignments": null
+          }
+        ],
+        "keyTopics": [
+          "SQL",
+          "SQL queries",
+          "Data \nReview",
+          "Data Modeling",
+          "NoSQL",
+          "MongoDB"
+        ]
+      }
+    },
+    {
+      "id": "BUAN_6320_V2",
+      "code": "BUAN6320",
+      "number": "BUAN 6320",
+      "title": "Database Foundations for Business Analytics / MIS 6326 Data Management",
+      "category": "Core - Database",
+      "syllabusFile": "Fall_2025_SyllabusTable_V1.0_BUAN6v99.503.docx",
+      "contentLength": 2020,
+      "syllabus": {
+        "courseCode": "BUAN6320",
+        "courseNumber": "BUAN 6320",
+        "courseTitle": "Database Foundations for Business Analytics / MIS 6326 Data Management",
+        "category": "Core - Database",
+        "rawContent": "Class Date | Topic(s) | HW, Quizzes and Projects (All due dates end at 11:59 pm)\nWeek 1\n  August 27 | Relational Database Review and SQL Basics\nInstalling and Running a Local DB\nWeek 2\nSeptember 3 | Accessing Databases with Python (no UI)\nUsing sqlite3, psycopg2 (Postgres), or mysql-connector-python\nRunning SQL queries directly in Python scripts\nWeek 3 \nSeptember 10 | CRUD operations via Python\nManaging connections and cursors\nBasic Database Projects in Python | Form Groups\nHW1: In e-Learning\nWeek 4\nSeptember 17 | Project Introduction - Build an AI-powered Knowledge System\nIntroduction to ORMs \nSQLAlchemy or Django ORM basics | HW 1: DUE \nGroup Formation DUE\nWeek 5\nSeptember 24 | How ORMs simplify database access\nQuery Optimization & Indexing\nReducing query time with good schema design | Quiz 1\nHW 2: In e-learning\nWeek 6\nOctober 1 | Database Internals \nTransactions and ACID properties | HW2: DUE\nWeek 7\nOctober 8 | NoSQL Databases with Python\nMongoDB and Redis\nKey-value vs. document stores\nWeek 8\nOctober 15 | Data Modeling in Real-World Apps\nNormalization vs. denormalization\nDesigning for performance | HW 3: In e-learning\nWeek 9\nOctober 22 | Distributed Databases & Scaling\nSharding and replication | Quiz 2 \nHW3: DUE\nWeek 10\n  October 29 | Understanding Embeddings and Vectorization\nUsing sentence-transformers or OpenAI API to generate embeddings\nStoring and managing embeddings with Python\nVector Databases and use-cases\nWeek 11\nNovember 5 | Indexing and querying with embeddings\nNatural Language to SQL with LLMs\nGPT/OpenAI API \nLangChain SQL agents | HW 4: In e-learning\nWeek 12\n   November 12 | Introduction to LangChain, LlamaIndex, CrewAI\nCreating agents that can fetch, analyze, and answer DB-based questions | HW 4: DUE\nWeek 13\nNovember 19 | PROJECT PRESENTATION BY ALL | Project Write-up: DUE\nWeek 14\nNovember 26 | Fall Break (No Class) | HW 5: In e-learning\nWeek 15\nDecember 3 | Quiz-3 | HW 5: DUE\nQuiz 3\nWeek 16\nDecember 7 | Final Project Submission: DUE\nFinal Project Video Submission: DUE",
+        "weeklySchedule": [
+          {
+            "week": 1,
+            "date": "August 27",
+            "topics": [
+              "Relational Database Review and SQL Basics"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 2,
+            "date": "September 3",
+            "topics": [
+              "Accessing Databases with Python (no UI)"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 3,
+            "date": "September 10",
+            "topics": [
+              "CRUD operations via Python"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 3,
+            "date": "Week 3",
+            "topics": [
+              "Form Groups"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 4,
+            "date": "September 17",
+            "topics": [
+              "Project Introduction - Build an AI-powered Knowledge System"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 4,
+            "date": "Week 4",
+            "topics": [
+              "HW 1: DUE"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 5,
+            "date": "September 24",
+            "topics": [
+              "How ORMs simplify database access"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 5,
+            "date": "Week 5",
+            "topics": [
+              "Quiz 1"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 6,
+            "date": "October 1",
+            "topics": [
+              "Database Internals"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 6,
+            "date": "Week 6",
+            "topics": [
+              "HW2: DUE"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 7,
+            "date": "October 8",
+            "topics": [
+              "NoSQL Databases with Python"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 8,
+            "date": "October 15",
+            "topics": [
+              "Data Modeling in Real-World Apps"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 8,
+            "date": "Week 8",
+            "topics": [
+              "HW 3: In e-learning"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 9,
+            "date": "October 22",
+            "topics": [
+              "Distributed Databases & Scaling"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 9,
+            "date": "Week 9",
+            "topics": [
+              "Quiz 2"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 10,
+            "date": "October 29",
+            "topics": [
+              "Understanding Embeddings and Vectorization"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 11,
+            "date": "November 5",
+            "topics": [
+              "Indexing and querying with embeddings"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 11,
+            "date": "Week 11",
+            "topics": [
+              "HW 4: In e-learning"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 12,
+            "date": "November 12",
+            "topics": [
+              "Introduction to LangChain, LlamaIndex, CrewAI"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 12,
+            "date": "Week 12",
+            "topics": [
+              "HW 4: DUE"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 13,
+            "date": "November 19",
+            "topics": [
+              "PROJECT PRESENTATION BY ALL"
+            ],
+            "assignments": "Project Write-up: DUE"
+          },
+          {
+            "week": 14,
+            "date": "November 26",
+            "topics": [
+              "Fall Break (No Class)"
+            ],
+            "assignments": "HW 5: In e-learning"
+          },
+          {
+            "week": 15,
+            "date": "December 3",
+            "topics": [
+              "Quiz-3"
+            ],
+            "assignments": "HW 5: DUE"
+          },
+          {
+            "week": 16,
+            "date": "December 7",
+            "topics": [
+              "Final Project Submission: DUE"
+            ],
+            "assignments": null
+          }
+        ],
+        "keyTopics": [
+          "SQL Basics",
+          "sql",
+          "SQL queries",
+          "Database Review",
+          "Database Projects",
+          "database access",
+          "Database Internals",
+          "Data Modeling",
+          "NoSQL",
+          "MongoDB",
+          "Redis",
+          "Python"
+        ]
+      }
+    },
+    {
+      "id": "MIS_6308",
+      "code": "MIS 6308",
+      "number": "MIS 6308",
+      "title": "System Analysis and Project Management",
+      "category": "Core - Systems",
+      "syllabusFile": "Fall_2025_SyllabusTable_V1.0_MIS 6308.001.docx",
+      "contentLength": 1554,
+      "syllabus": {
+        "courseCode": "MIS 6308",
+        "courseNumber": "MIS 6308",
+        "courseTitle": "System Analysis and Project Management",
+        "category": "Core - Systems",
+        "rawContent": "Class Date | Topic(s) | HW, Quizzes and Projects (All due dates end at 11:59pm)\nWeek 1\nAugust 25 | Introduction to the course \nInformation Systems Overview \nApproaches to Systems Development\nWeek 2\nSeptember 1 | Labor Day (No Class)\nWeek 3\nSeptember 8 | Methodologies\nObject Oriented Design and Approach \nFlowcharts | Form Groups\nHW 1: In eLearning\nWeek 4\nSeptember 15 | BPMN\nAssign projects to teams | HW 1: DUE\nGroup Formation DUE\nWeek 5\nSeptember 22 | Object-Oriented Modeling and UML\nProcess Modeling\nRequirement Gathering | Quiz 1\nHW 2: In eLearning\nWeek 6\nSeptember 29 | Review and Project work\nProject Discussion and Goals & Expectation for project | HW2: DUE\nWeek 7\nOctober 6 | Analysis of UML Models\nStatic Modeling\nContext Diagram\nWeek 8\nOctober 13 | Use Case\nActivity Diagram\nClass Diagram | HW3: In eLearning\nWeek 9\nOctober 20 | Dynamic Modeling\nState Diagram\nSequence Diagram | Quiz 2\nHW3: DUE\nWeek 10\n  October 27 | Data Modeling \nDFD\nER Diagram\nDatabase Design\nWeek 11\nNovember 3 | UI Design and Tool\nIT Architecture\nTOGAF \nIntroduction to Project Management | HW 4 : In e-learning\nWeek 12\nNovember 10 | Software Design \nSoftware Testing and Implementation \nProject Management and Planning | HW 4: DUE\nWeek 13\nNovember 17 | IS Project Management Issues\nProject Presentation and Discussion on Project Submission | Project Write-up: DUE\nWeek 14\nNovember 24 | Fall Break (No Class) | HW 5: In e-learning\nWeek 15\n  December 1 | PM Financials\nPM Charts | HW 5: DUE\nQuiz 3\nWeek 16\nDecember 7 | Project Submission Due\nProject Video Submission Due",
+        "weeklySchedule": [
+          {
+            "week": 1,
+            "date": "August 25",
+            "topics": [
+              "Introduction to the course"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 2,
+            "date": "September 1",
+            "topics": [
+              "Labor Day (No Class)"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 3,
+            "date": "September 8",
+            "topics": [
+              "Methodologies"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 3,
+            "date": "Week 3",
+            "topics": [
+              "Form Groups"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 4,
+            "date": "September 15",
+            "topics": [
+              "BPMN"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 4,
+            "date": "Week 4",
+            "topics": [
+              "HW 1: DUE"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 5,
+            "date": "September 22",
+            "topics": [
+              "Object-Oriented Modeling and UML"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 5,
+            "date": "Week 5",
+            "topics": [
+              "Quiz 1"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 6,
+            "date": "September 29",
+            "topics": [
+              "Review and Project work"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 6,
+            "date": "Week 6",
+            "topics": [
+              "HW2: DUE"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 7,
+            "date": "October 6",
+            "topics": [
+              "Analysis of UML Models"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 8,
+            "date": "October 13",
+            "topics": [
+              "Use Case"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 8,
+            "date": "Week 8",
+            "topics": [
+              "HW3: In eLearning"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 9,
+            "date": "October 20",
+            "topics": [
+              "Dynamic Modeling"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 9,
+            "date": "Week 9",
+            "topics": [
+              "Quiz 2"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 10,
+            "date": "October 27",
+            "topics": [
+              "Data Modeling"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 11,
+            "date": "November 3",
+            "topics": [
+              "UI Design and Tool"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 11,
+            "date": "Week 11",
+            "topics": [
+              "HW 4 : In e-learning"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 12,
+            "date": "November 10",
+            "topics": [
+              "Software Design"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 12,
+            "date": "Week 12",
+            "topics": [
+              "HW 4: DUE"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 13,
+            "date": "November 17",
+            "topics": [
+              "IS Project Management Issues"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 13,
+            "date": "Week 13",
+            "topics": [
+              "Project Write-up: DUE"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 14,
+            "date": "November 24",
+            "topics": [
+              "Fall Break (No Class)"
+            ],
+            "assignments": "HW 5: In e-learning"
+          },
+          {
+            "week": 15,
+            "date": "December 1",
+            "topics": [
+              "PM Financials"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 15,
+            "date": "Week 15",
+            "topics": [
+              "HW 5: DUE"
+            ],
+            "assignments": null
+          },
+          {
+            "week": 16,
+            "date": "December 7",
+            "topics": [
+              "Project Submission Due"
+            ],
+            "assignments": null
+          }
+        ],
+        "keyTopics": [
+          "Database Design",
+          "Data Modeling",
+          "Systems Development",
+          "Project Management",
+          "UML",
+          "Testing"
+        ]
+      }
+    }
+  ]
+}

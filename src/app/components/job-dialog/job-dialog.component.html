@@ -1,0 +1,144 @@
+<h2 mat-dialog-title>Add Job Titles</h2>
+
+<mat-dialog-content>
+  <mat-tab-group [(selectedIndex)]="selectedTab" class="job-tabs">
+    
+    <!-- Manual Entry Tab -->
+    <mat-tab label="Manual Entry">
+      <div class="tab-content">
+        <p class="tab-description">
+          Enter job titles manually, one per field. Add more fields as needed.
+        </p>
+        
+        <form [formGroup]="jobForm" class="manual-jobs-form">
+          <div formArrayName="manualJobs" class="jobs-list">
+            <div *ngFor="let job of manualJobsArray.controls; let i = index" class="job-input-row">
+              <mat-form-field appearance="outline" class="job-field">
+                <mat-label>Job Title {{ i + 1 }}</mat-label>
+                <input 
+                  matInput 
+                  [formControlName]="i"
+                  placeholder="e.g., Software Engineer"
+                  autocomplete="off">
+                <mat-error *ngIf="job.hasError('required')">Job title is required</mat-error>
+                <mat-error *ngIf="job.hasError('minlength')">Minimum 3 characters required</mat-error>
+              </mat-form-field>
+              
+              <button 
+                mat-icon-button 
+                color="warn"
+                type="button"
+                (click)="removeManualJobField(i)"
+                [disabled]="manualJobsArray.length === 1"
+                matTooltip="Remove field">
+                <mat-icon>remove_circle</mat-icon>
+              </button>
+            </div>
+          </div>
+          
+          <button 
+            mat-stroked-button 
+            type="button"
+            (click)="addManualJobField()"
+            class="add-field-button">
+            <mat-icon>add</mat-icon>
+            Add Another Job Title
+          </button>
+        </form>
+      </div>
+    </mat-tab>
+    
+    <!-- Browse Categories Tab -->
+    <mat-tab label="Browse Categories">
+      <div class="tab-content">
+        <p class="tab-description">
+          Select from trending tech job titles organized by category.
+        </p>
+        
+        <div class="fetch-section">
+          <button 
+            mat-raised-button 
+            color="accent"
+            (click)="fetchTrendingJobs()"
+            [disabled]="isFetchingJobs"
+            class="fetch-button">
+            <mat-icon>trending_up</mat-icon>
+            {{ isFetchingJobs ? 'Fetching...' : 'Get Today\'s Trending Jobs' }}
+          </button>
+        </div>
+        
+        <div class="categories-container">
+          <mat-accordion multi>
+            <mat-expansion-panel *ngFor="let category of jobCategories" [expanded]="true">
+              <mat-expansion-panel-header>
+                <mat-panel-title>
+                  {{ category.name }}
+                  <mat-chip-set class="category-chip">
+                    <mat-chip [highlighted]="getCategorySelectionCount(category) > 0">
+                      {{ getCategorySelectionCount(category) }}/{{ category.jobs.length }}
+                    </mat-chip>
+                  </mat-chip-set>
+                </mat-panel-title>
+              </mat-expansion-panel-header>
+              
+              <div class="category-actions">
+                <button mat-button (click)="selectAllInCategory(category)">
+                  Select All
+                </button>
+                <button mat-button (click)="clearAllInCategory(category)">
+                  Clear All
+                </button>
+              </div>
+              
+              <div class="jobs-grid">
+                <mat-checkbox 
+                  *ngFor="let job of category.jobs"
+                  [checked]="isJobSelected(job)"
+                  (change)="toggleJobSelection(job)"
+                  class="job-checkbox">
+                  {{ job }}
+                </mat-checkbox>
+              </div>
+            </mat-expansion-panel>
+          </mat-accordion>
+        </div>
+        
+        <!-- Fetched Jobs Display -->
+        <div *ngIf="fetchedJobs.length > 0" class="fetched-jobs-section">
+          <h3>
+            <mat-icon>auto_awesome</mat-icon>
+            AI-Recommended Trending Jobs
+          </h3>
+          <div class="fetched-jobs-chips">
+            <mat-chip-set>
+              <mat-chip 
+                *ngFor="let job of fetchedJobs" 
+                [highlighted]="true"
+                [removable]="false">
+                <mat-icon matChipAvatar>work</mat-icon>
+                {{ job.label }}
+              </mat-chip>
+            </mat-chip-set>
+          </div>
+        </div>
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+  
+  <!-- Selection Summary -->
+  <div class="selection-summary" *ngIf="hasSelectedJobs">
+    <mat-icon>info</mat-icon>
+    <span>{{ selectedJobsCount }} job title(s) selected</span>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()">Cancel</button>
+  <button 
+    mat-raised-button 
+    color="primary" 
+    (click)="saveJobs()"
+    [disabled]="!hasSelectedJobs">
+    Add Selected Jobs
+  </button>
+</mat-dialog-actions>

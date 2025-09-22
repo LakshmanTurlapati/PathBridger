@@ -1,0 +1,105 @@
+<mat-card class="syllabus-viewer" [class.expanded]="expanded">
+  <mat-card-header>
+    <mat-card-title>
+      <span>{{ course?.title || 'Course Syllabus' }}</span>
+    </mat-card-title>
+    <mat-card-subtitle>
+      {{ course?.code }}
+    </mat-card-subtitle>
+  </mat-card-header>
+
+  <mat-card-content>
+    <mat-tab-group [(selectedIndex)]="selectedTabIndex" animationDuration="200ms">
+      
+      <!-- Overview Tab -->
+      <mat-tab label="Overview">
+        <div class="tab-content">
+          <div class="course-info">
+            <h3>Course Information</h3>
+            <mat-list>
+              <mat-list-item>
+                <mat-icon matListItemIcon>badge</mat-icon>
+                <div matListItemTitle>Course Code</div>
+                <div matListItemLine>{{ course?.code || 'N/A' }}</div>
+              </mat-list-item>
+              <mat-list-item>
+                <mat-icon matListItemIcon>numbers</mat-icon>
+                <div matListItemTitle>Course Number</div>
+                <div matListItemLine>{{ course?.number || 'N/A' }}</div>
+              </mat-list-item>
+              <mat-list-item>
+                <mat-icon matListItemIcon>category</mat-icon>
+                <div matListItemTitle>Category</div>
+                <div matListItemLine>{{ course?.category || 'N/A' }}</div>
+              </mat-list-item>
+              <mat-list-item *ngIf="course?.creditHours">
+                <mat-icon matListItemIcon>schedule</mat-icon>
+                <div matListItemTitle>Credit Hours</div>
+                <div matListItemLine>{{ course?.creditHours }}</div>
+              </mat-list-item>
+            </mat-list>
+          </div>
+
+          <mat-divider></mat-divider>
+
+          <!-- Key Topics -->
+          <div class="key-topics" *ngIf="course?.syllabus?.keyTopics">
+            <h3>Key Topics Covered</h3>
+            <div class="topic-chips">
+              <mat-chip *ngFor="let topic of course?.syllabus?.keyTopics">
+                <mat-icon class="topic-icon">{{ getTopicIcon(topic) }}</mat-icon>
+                {{ topic }}
+              </mat-chip>
+            </div>
+          </div>
+        </div>
+      </mat-tab>
+
+      <!-- Weekly Schedule Tab - Removed as requested -->
+
+      <!-- Full Syllabus Tab -->
+      <mat-tab label="Full Syllabus">
+        <div class="tab-content">
+          <div class="syllabus-content">
+            <div *ngIf="course && course.syllabus && course.syllabus.rawContent; else noContent">
+              <!-- Table View Only -->
+              <div class="table-container">
+                <table class="syllabus-table">
+                  <thead>
+                    <tr>
+                      <th>Week</th>
+                      <th>Date</th>
+                      <th>Topics</th>
+                      <th>Assignments/Due Dates</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr *ngFor="let row of parseSyllabusTable(course.syllabus.rawContent); let odd = odd" 
+                        [class.odd-row]="odd">
+                      <td class="week-cell">{{ row.week || '-' }}</td>
+                      <td class="date-cell">{{ row.date }}</td>
+                      <td class="topics-cell">{{ row.topics }}</td>
+                      <td class="assignments-cell">
+                        <span [class.has-assignment]="row.assignments !== '-'">
+                          {{ row.assignments }}
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <ng-template #noContent>
+              <div class="no-content-message">
+                <mat-icon>description</mat-icon>
+                <h3>No Syllabus Content</h3>
+                <p>Syllabus content not available for this course.</p>
+              </div>
+            </ng-template>
+          </div>
+        </div>
+      </mat-tab>
+
+    </mat-tab-group>
+  </mat-card-content>
+</mat-card>

@@ -1,0 +1,108 @@
+<div class="diff-viewer-container" *ngIf="diffData">
+  <!-- Header with controls -->
+  <mat-card class="diff-header">
+    <div class="header-content">
+      <div class="course-info">
+        <h3>
+          <mat-icon [class]="'improvement-icon'">{{ getImprovementIcon() }}</mat-icon>
+          {{ diffData.enhanced.title }} - Syllabus Enhancement
+        </h3>
+        <p class="enhancement-summary">{{ getEnhancementSummary() }}</p>
+      </div>
+      
+      <div class="controls">
+        <mat-button-toggle-group 
+          [value]="viewMode" 
+          (change)="onViewModeChange($event.value)"
+          class="view-mode-toggle">
+          <mat-button-toggle value="side-by-side">
+            <mat-icon>view_column</mat-icon>
+            Side by Side
+          </mat-button-toggle>
+          <mat-button-toggle value="unified">
+            <mat-icon>view_stream</mat-icon>
+            Unified
+          </mat-button-toggle>
+        </mat-button-toggle-group>
+
+        <mat-button-toggle-group 
+          [value]="diffFormat" 
+          (change)="onDiffFormatChange($event.value)"
+          class="format-toggle">
+          <mat-button-toggle value="line">
+            <mat-icon>format_list_numbered</mat-icon>
+            Line
+          </mat-button-toggle>
+          <mat-button-toggle value="word">
+            <mat-icon>text_fields</mat-icon>
+            Word
+          </mat-button-toggle>
+        </mat-button-toggle-group>
+
+        <button mat-icon-button 
+                (click)="exportDiff()" 
+                matTooltip="Export enhanced syllabus">
+          <mat-icon>file_download</mat-icon>
+        </button>
+      </div>
+    </div>
+  </mat-card>
+
+  <!-- Enhancement details -->
+  <mat-card class="enhancement-details" *ngIf="diffData.enhancement">
+    <mat-card-header>
+      <mat-card-title>Enhancement Details</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <div class="enhancement-metrics">
+        <div class="metric" *ngIf="diffData.enhancement.gapsFilled.length > 0">
+          <mat-icon class="gap-icon">auto_fix_high</mat-icon>
+          <span class="metric-label">Gaps Filled:</span>
+          <span class="metric-value">{{ diffData.enhancement.gapsFilled.length }} weeks</span>
+          <span class="metric-detail">(Weeks {{ diffData.enhancement.gapsFilled.join(', ') }})</span>
+        </div>
+
+        <div class="metric" *ngIf="diffData.enhancement.topicsEnhanced.length > 0">
+          <mat-icon class="topic-icon">lightbulb</mat-icon>
+          <span class="metric-label">Topics Enhanced:</span>
+          <span class="metric-value">{{ diffData.enhancement.topicsEnhanced.length }} topics</span>
+        </div>
+
+        <div class="metric" *ngIf="diffData.enhancement.assignmentsMoved.length > 0">
+          <mat-icon class="assignment-icon">assignment_turned_in</mat-icon>
+          <span class="metric-label">Assignments Organized:</span>
+          <span class="metric-value">{{ diffData.enhancement.assignmentsMoved.length }} items</span>
+        </div>
+
+        <div class="metric">
+          <mat-icon class="week-icon">date_range</mat-icon>
+          <span class="metric-label">Week Count:</span>
+          <span class="metric-value">
+            {{ diffData.enhancement.originalWeekCount }} → {{ diffData.enhancement.enhancedWeekCount }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Topic enhancements details -->
+      <div class="topic-enhancements" *ngIf="diffData.enhancement.topicsEnhanced.length > 0">
+        <h4>Enhanced Topics:</h4>
+        <div class="enhanced-topic" *ngFor="let topic of diffData.enhancement.topicsEnhanced">
+          <span class="original">{{ topic.original }}</span>
+          <mat-icon class="arrow">arrow_forward</mat-icon>
+          <span class="enhanced">{{ topic.enhanced }}</span>
+        </div>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
+  <!-- Diff content -->
+  <mat-card class="diff-content">
+    <div class="diff-container" [innerHTML]="diffHtml"></div>
+  </mat-card>
+</div>
+
+<div class="empty-state" *ngIf="!diffData">
+  <mat-icon class="empty-icon">compare</mat-icon>
+  <h3>No Diff Data Available</h3>
+  <p>Please select a course with enhancement data to view the diff.</p>
+</div>

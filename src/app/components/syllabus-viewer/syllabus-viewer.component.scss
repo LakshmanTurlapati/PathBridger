@@ -1,0 +1,378 @@
+.syllabus-viewer {
+  margin: 16px 0;
+  
+  &.expanded {
+    margin: 24px 0;
+  }
+
+
+  mat-card-subtitle {
+    margin-top: 8px;
+    color: rgba(0, 0, 0, 0.54);
+  }
+
+  .tab-content {
+    padding: 16px 0;
+    min-height: 400px;
+  }
+
+  .course-info {
+    margin-bottom: 24px;
+
+    h3 {
+      margin-bottom: 16px;
+      font-size: 18px;
+      font-weight: 500;
+    }
+
+    mat-list-item {
+      height: auto;
+      padding: 8px 0;
+    }
+  }
+
+  .key-topics {
+    margin-top: 24px;
+
+    h3 {
+      margin-bottom: 16px;
+      font-size: 18px;
+      font-weight: 500;
+    }
+
+    .topic-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+
+      mat-chip {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+
+        .topic-icon {
+          font-size: 18px;
+          width: 18px;
+          height: 18px;
+        }
+      }
+    }
+  }
+
+  .search-bar {
+    margin-bottom: 24px;
+
+    .search-field {
+      width: 100%;
+      max-width: 500px;
+    }
+  }
+
+  mat-accordion {
+    mat-expansion-panel {
+      margin-bottom: 8px;
+      border-radius: 8px;
+
+      mat-expansion-panel-header {
+        .assignment-icon {
+          margin-left: 8px;
+          color: #ff9800;
+        }
+      }
+
+      .week-content {
+        padding: 16px;
+
+        h4 {
+          margin: 0 0 12px 0;
+          font-size: 16px;
+          font-weight: 500;
+          color: rgba(0, 0, 0, 0.87);
+        }
+
+        .topics-section {
+          margin-bottom: 20px;
+
+          mat-list-item {
+            height: auto;
+            min-height: 48px;
+            margin-bottom: 4px;
+          }
+        }
+
+        .assignments-section {
+          .assignment-content {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            
+            mat-icon {
+              color: #ff9800;
+            }
+
+            span {
+              flex: 1;
+            }
+
+            mat-chip {
+              font-size: 12px;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .no-results {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px;
+    text-align: center;
+    color: rgba(0, 0, 0, 0.38);
+
+    mat-icon {
+      font-size: 48px;
+      width: 48px;
+      height: 48px;
+      margin-bottom: 16px;
+    }
+
+    p {
+      margin: 0;
+      font-size: 16px;
+    }
+  }
+
+  .syllabus-content {
+    padding: 0;
+    background: #fafafa;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    
+    .table-container {
+      overflow-x: auto;
+      width: 100%;
+      margin: 0;
+      
+      .syllabus-table {
+        width: 100%;
+        min-width: 100%;
+        border-collapse: collapse;
+        background: white;
+        box-shadow: none;
+        table-layout: auto;
+        
+        thead {
+          background: #1976d2;
+          color: white;
+          
+          th {
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 500;
+            font-size: 14px;
+            border: 1px solid #1565c0;
+            
+            &:first-child {
+              width: 10%;
+              text-align: center;
+            }
+            
+            &:nth-child(2) {
+              width: 15%;
+            }
+            
+            &:nth-child(3) {
+              width: 50%;
+            }
+            
+            &:last-child {
+              width: 25%;
+            }
+          }
+        }
+        
+        tbody {
+          tr {
+            border-bottom: 1px solid #e0e0e0;
+            transition: background-color 0.2s;
+            
+            &:hover {
+              background-color: #f5f5f5;
+            }
+            
+            &.odd-row {
+              background-color: #fafafa;
+              
+              &:hover {
+                background-color: #f5f5f5;
+              }
+            }
+            
+            td {
+              padding: 10px 16px;
+              color: #333;
+              font-size: 14px;
+              line-height: 1.5;
+              border: 1px solid #e0e0e0;
+              word-wrap: break-word;
+              overflow-wrap: break-word;
+              
+              &.week-cell {
+                text-align: center;
+                font-weight: 500;
+                color: #1976d2;
+              }
+              
+              &.date-cell {
+                font-weight: 500;
+              }
+              
+              &.topics-cell {
+                color: #000;
+                white-space: normal;
+              }
+              
+              &.assignments-cell {
+                white-space: normal;
+                
+                .has-assignment {
+                  color: #d32f2f;
+                  font-weight: 500;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-family: 'Roboto', 'Arial', sans-serif;
+      font-size: 14px;
+      line-height: 1.8;
+      color: #000000 !important;
+      background: transparent;
+      border: none;
+      padding: 0;
+      
+      // Ensure table-like formatting
+      tab-size: 4;
+      -moz-tab-size: 4;
+    }
+    
+    .no-content-message {
+      text-align: center;
+      padding: 40px 20px;
+      color: #666;
+      
+      mat-icon {
+        font-size: 48px;
+        width: 48px;
+        height: 48px;
+        margin-bottom: 16px;
+        color: #ccc;
+      }
+      
+      h3 {
+        margin-bottom: 8px;
+        color: #333;
+      }
+      
+      p {
+        margin-bottom: 8px;
+        font-size: 14px;
+      }
+      
+      pre {
+        text-align: left;
+        background: #f0f0f0;
+        padding: 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        color: #000 !important;
+        margin-top: 16px;
+      }
+    }
+  }
+}
+
+// Dark mode support
+@media (prefers-color-scheme: dark) {
+  .syllabus-viewer {
+    mat-card-subtitle {
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .week-content {
+      h4 {
+        color: rgba(255, 255, 255, 0.87);
+      }
+
+      .assignments-section {
+        .assignment-content {
+          background: rgba(255, 255, 255, 0.05);
+        }
+      }
+    }
+
+    .no-results {
+      color: rgba(255, 255, 255, 0.38);
+    }
+
+    .syllabus-content {
+      background: #fafafa;
+      border: 1px solid #e0e0e0;
+      
+      pre {
+        // Force black text even in dark mode for readability
+        color: #000000 !important;
+        background: #ffffff !important;
+      }
+      
+      .syllabus-table {
+        background: white;
+        
+        thead {
+          background: #1976d2;
+          color: white;
+          
+          th {
+            border: 1px solid #1565c0;
+          }
+        }
+        
+        tbody {
+          tr {
+            td {
+              color: #333 !important;
+              border: 1px solid #e0e0e0;
+              
+              &.week-cell {
+                color: #1976d2 !important;
+              }
+              
+              &.topics-cell {
+                color: #000 !important;
+              }
+              
+              &.assignments-cell {
+                .has-assignment {
+                  color: #d32f2f !important;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

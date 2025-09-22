@@ -1,0 +1,113 @@
+<div class="enhancement-viewer" *ngIf="course && enhancement">
+  <div class="enhancement-header">
+    <h3>{{ course.title }} - Course Improvements</h3>
+    <p class="enhancement-summary">{{ getImprovementSummary() }}</p>
+  </div>
+
+  <div class="enhancement-stats" *ngIf="hasImprovements()">
+    <mat-card class="stats-card">
+      <mat-card-content>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <mat-icon>schedule</mat-icon>
+            <div class="stat-content">
+              <span class="stat-label">Original Weeks</span>
+              <span class="stat-value">{{ enhancement.originalWeekCount }}</span>
+            </div>
+          </div>
+          <div class="stat-item">
+            <mat-icon>timeline</mat-icon>
+            <div class="stat-content">
+              <span class="stat-label">Enhanced Weeks</span>
+              <span class="stat-value">{{ enhancement.enhancedWeekCount }}</span>
+            </div>
+          </div>
+          <div class="stat-item">
+            <mat-icon>auto_fix_high</mat-icon>
+            <div class="stat-content">
+              <span class="stat-label">Gaps Filled</span>
+              <span class="stat-value">{{ enhancement.gapsFilled.length }}</span>
+            </div>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <div class="improvements-section" *ngIf="hasImprovements()">
+    <!-- Gaps Filled -->
+    <mat-card *ngIf="enhancement.gapsFilled.length > 0" class="improvement-card gaps-filled">
+      <mat-card-header>
+        <mat-icon mat-card-avatar>{{ getEnhancementIcon('gaps') }}</mat-icon>
+        <mat-card-title>Week Gaps Filled</mat-card-title>
+        <mat-card-subtitle>Added content for {{ enhancement.gapsFilled.length }} missing weeks</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="chip-container">
+          <mat-chip-set>
+            <mat-chip *ngFor="let week of enhancement.gapsFilled" class="enhancement-chip gap-chip">
+              Week {{ week }}
+            </mat-chip>
+          </mat-chip-set>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Topics Enhanced -->
+    <mat-card *ngIf="enhancement.topicsEnhanced.length > 0" class="improvement-card topics-enhanced">
+      <mat-card-header>
+        <mat-icon mat-card-avatar>{{ getEnhancementIcon('topics') }}</mat-icon>
+        <mat-card-title>Topics Enhanced</mat-card-title>
+        <mat-card-subtitle>Improved {{ enhancement.topicsEnhanced.length }} topic descriptions</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <mat-list>
+          <mat-list-item *ngFor="let topic of enhancement.topicsEnhanced" class="topic-enhancement">
+            <div matListItemTitle class="topic-before">{{ topic.original }}</div>
+            <div matListItemLine class="topic-after">
+              <mat-icon class="arrow-icon">arrow_forward</mat-icon>
+              {{ topic.enhanced }}
+            </div>
+          </mat-list-item>
+        </mat-list>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Assignments Organized -->
+    <mat-card *ngIf="enhancement.assignmentsMoved.length > 0" class="improvement-card assignments-moved">
+      <mat-card-header>
+        <mat-icon mat-card-avatar>{{ getEnhancementIcon('assignments') }}</mat-icon>
+        <mat-card-title>Assignments Organized</mat-card-title>
+        <mat-card-subtitle>Moved {{ enhancement.assignmentsMoved.length }} assignments to proper columns</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="assignments-info">
+          <p>Assignments were moved from the topics column to the assignments column for better organization.</p>
+          <div class="chip-container">
+            <mat-chip-set>
+              <mat-chip *ngFor="let move of enhancement.assignmentsMoved" class="enhancement-chip assignment-chip">
+                {{ move.from }} → {{ move.to }}
+              </mat-chip>
+            </mat-chip-set>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <!-- No Improvements Message -->
+  <mat-card *ngIf="!hasImprovements()" class="no-improvements-card">
+    <mat-card-content>
+      <div class="no-improvements">
+        <mat-icon class="success-icon">check_circle</mat-icon>
+        <h4>Course Already Well-Structured</h4>
+        <p>This course syllabus was already well-organized with no gaps or structural issues requiring improvements.</p>
+      </div>
+    </mat-card-content>
+  </mat-card>
+</div>
+
+<div class="no-data" *ngIf="!course || !enhancement">
+  <mat-icon>info</mat-icon>
+  <p>No enhancement data available</p>
+</div>

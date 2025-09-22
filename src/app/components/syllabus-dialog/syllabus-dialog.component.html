@@ -1,0 +1,44 @@
+<div class="syllabus-dialog">
+  <div class="dialog-header">
+    <h2 mat-dialog-title>{{ dialogTitle }}</h2>
+    <button mat-icon-button (click)="onClose()" class="close-button">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <mat-dialog-content>
+    <!-- Show Diff View -->
+    <app-syllabus-diff-viewer 
+      *ngIf="isDiffMode"
+      [diffData]="diffData">
+    </app-syllabus-diff-viewer>
+
+    <!-- Show Enhancement View with Tabs -->
+    <mat-tab-group *ngIf="isEnhancementMode" class="enhancement-tabs">
+      <mat-tab label="Enhancement Summary">
+        <app-course-enhancement-viewer 
+          [course]="data.course" 
+          [enhancement]="data.enhancement">
+        </app-course-enhancement-viewer>
+      </mat-tab>
+      
+      <mat-tab label="Original Syllabus">
+        <app-syllabus-viewer 
+          [course]="data.course" 
+          [expanded]="true">
+        </app-syllabus-viewer>
+      </mat-tab>
+    </mat-tab-group>
+
+    <!-- Show Regular Syllabus View -->
+    <app-syllabus-viewer 
+      *ngIf="isSyllabusMode"
+      [course]="data.course" 
+      [expanded]="true">
+    </app-syllabus-viewer>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button (click)="onClose()">Close</button>
+  </mat-dialog-actions>
+</div>
