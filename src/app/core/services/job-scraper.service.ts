@@ -112,14 +112,15 @@ export class JobScraperService {
   /**
    * Search for jobs using Grok API with Live Search
    */
-  private searchJobsWithGrok(apiKey: string, query?: string, maxResults: number = 10): Observable<JobTitle[]> {
+  private searchJobsWithGrok(apiKey: string, query?: string, maxResults: number = 10, useSimplified: boolean = false): Observable<JobTitle[]> {
     const searchQuery = query || 'trending technology job titles 2025';
-    const prompt = this.createJobSearchPrompt(searchQuery, maxResults);
+    const prompt = this.createJobSearchPrompt(searchQuery, maxResults, useSimplified);
     
     console.log('-------------------------------------');
     console.log('📝 PREPARING GROK API REQUEST');
     console.log('-------------------------------------');
     console.log('Search Query:', searchQuery);
+    console.log('Mode:', useSimplified ? 'Simplified (fallback)' : 'Enhanced (with descriptions)');
     console.log('Prompt length:', prompt.length, 'characters');
     
     const headers = new HttpHeaders({
@@ -132,7 +133,7 @@ export class JobScraperService {
       messages: [
         {
           role: 'system',
-          content: 'You are a job market analyst with expertise in technology careers. Use current data to provide the most relevant and in-demand job titles.'
+          content: 'You are a job market analyst with access to current hiring information. Search for REAL companies that are actually hiring. Use live web data to find actual job openings at specific companies. Do not make up company names or use generic examples.'
         },
         {
           role: 'user',
@@ -140,7 +141,7 @@ export class JobScraperService {
         }
       ],
       temperature: 0.7,
-      max_tokens: 1000,
+      max_tokens: useSimplified ? 500 : 1000, // Less tokens for simplified mode
       search_parameters: {
         mode: APP_CONSTANTS.GROK_API.LIVE_SEARCH_CONFIG.mode,
         return_citations: APP_CONSTANTS.GROK_API.LIVE_SEARCH_CONFIG.return_citations,
@@ -158,10 +159,11 @@ export class JobScraperService {
     console.log('- Search Mode:', request.search_parameters?.mode);
     console.log('- Sources:', request.search_parameters?.sources);
     console.log('- Date Range:', request.search_parameters?.from_date, 'to', request.search_parameters?.to_date);
-    console.log('Full Request Body:', JSON.stringify(request, null, 2));
     
     console.log('🔗 API URL:', this.apiUrl);
     console.log('🔑 Auth Header:', `Bearer ${apiKey.substring(0, 10)}...`);
+    
+    const timeout$ = useSimplified ? 20000 : 30000; // Shorter timeout for simplified
     
     return this.http.post<GrokResponse>(this.apiUrl, request, { headers }).pipe(
       map(response => {
@@ -180,12 +182,19 @@ export class JobScraperService {
         return this.parseJobsFromResponse(response);
       }),
       retry(1),
-      timeout(15000),
+      timeout(timeout$),
       catchError(error => {
         console.error('❌ Grok API HTTP error:', error);
         console.error('Status:', error.status);
         console.error('Status Text:', error.statusText);
         console.error('Error Body:', error.error);
+        
+        // If this was an enhanced request that timed out, try simplified
+        if (!useSimplified && error.name === 'TimeoutError') {
+          console.log('⏱️ Enhanced request timed out, trying simplified prompt...');
+          return this.searchJobsWithGrok(apiKey, query, maxResults, true);
+        }
+        
         return throwError(() => error);
       })
     );
@@ -194,31 +203,50 @@ export class JobScraperService {
   /**
    * Create prompt for job search
    */
-  private createJobSearchPrompt(query: string, maxResults: number): string {
-    return `Based on current job market data and trends, provide the ${maxResults} most in-demand technology job titles.
+  private createJobSearchPrompt(query: string, maxResults: number, simplified: boolean = false): string {
+    if (simplified) {
+      // Simplified prompt for faster response
+      return `List ${maxResults} technology companies currently hiring for: ${query}
 
-Search focus: ${query}
-
-Consider:
-1. Current hiring trends in tech companies
-2. Emerging technologies and roles
-3. High-growth areas (AI/ML, cloud, security, etc.)
-4. Both established and emerging positions
-
-IMPORTANT: Return ONLY a JSON array of job titles, no explanations or additional text.
-
-Format your response EXACTLY like this:
+Return a JSON array with job title and company. Example:
 [
-  "Job Title 1",
-  "Job Title 2",
-  "Job Title 3"
+  {"title": "Software Engineer", "company": "Google"},
+  {"title": "Data Scientist", "company": "Meta"}
+]`;
+    }
+
+    // Enhanced prompt requesting actual companies hiring
+    return `Find ${maxResults} current job openings at tech companies for: ${query}
+
+Search for ACTUAL companies that are currently hiring. Include:
+- title: specific job title
+- company: name of the company that's hiring (REQUIRED - must be a real company)
+- description: brief role description (1-2 sentences)
+- location: job location if known (optional)
+- skills: 3-4 key skills required (optional)
+
+Important: Include REAL company names that are actually hiring, not generic examples.
+Focus on well-known tech companies, startups, and companies with open positions.
+
+Example format:
+[
+  {
+    "title": "Senior Software Engineer",
+    "company": "Google",
+    "description": "Build scalable systems for Google Cloud Platform.",
+    "location": "Mountain View, CA",
+    "skills": ["Java", "Kubernetes", "GCP"]
+  },
+  {
+    "title": "ML Engineer",
+    "company": "OpenAI",
+    "description": "Work on large language models and AI systems.",
+    "location": "San Francisco, CA",
+    "skills": ["Python", "PyTorch", "Transformers"]
+  }
 ]
 
-Ensure job titles are:
-- Professional and commonly used in the industry
-- Not overly specific (avoid company-specific titles)
-- Covering a range of seniority levels
-- Relevant to current market demands`;
+Return valid JSON with real companies currently hiring in tech.`;
   }
 
   /**
@@ -249,43 +277,157 @@ Ensure job titles are:
       
       console.log('Content to parse:', content);
       
-      // Try to parse as JSON array
-      let jobTitles: string[] = [];
+      // Try to parse as structured JSON array first
+      let jobData: any[] = [];
+      let isStructuredData = false;
       
       // First try direct JSON parsing
       try {
-        jobTitles = JSON.parse(content);
+        const parsed = JSON.parse(content);
+        if (Array.isArray(parsed)) {
+          // Check if it's structured data (objects with title) or simple strings
+          if (parsed.length > 0 && typeof parsed[0] === 'object' && 'title' in parsed[0]) {
+            jobData = parsed;
+            isStructuredData = true;
+            console.log('✅ Parsed structured job data');
+          } else if (typeof parsed[0] === 'string') {
+            // Legacy format - simple strings
+            jobData = parsed.map(title => ({ title }));
+            console.log('📝 Parsed legacy string format');
+          }
+        }
       } catch {
         // If not valid JSON, try to extract from text
         const jsonMatch = content.match(/\[[\s\S]*\]/);
         if (jsonMatch) {
-          jobTitles = JSON.parse(jsonMatch[0]);
-        } else {
-          // Fallback: extract lines that look like job titles
-          jobTitles = content
+          try {
+            const parsed = JSON.parse(jsonMatch[0]);
+            if (Array.isArray(parsed)) {
+              if (parsed.length > 0 && typeof parsed[0] === 'object' && 'title' in parsed[0]) {
+                jobData = parsed;
+                isStructuredData = true;
+              } else if (typeof parsed[0] === 'string') {
+                jobData = parsed.map(title => ({ title }));
+              }
+            }
+          } catch {
+            console.warn('⚠️ Could not parse extracted JSON');
+          }
+        }
+        
+        // Final fallback: extract lines that look like job titles
+        if (jobData.length === 0) {
+          const titles = content
             .split('\n')
             .map(line => line.trim())
             .filter(line => line.length > 3 && !line.startsWith('[') && !line.startsWith(']'))
             .map(line => line.replace(/^[-*•]\s*/, '').replace(/^"\s*|\s*"$/g, '').replace(/,$/g, ''))
             .filter(line => line.length > 0);
+          
+          jobData = titles.map(title => ({ title }));
+          console.log('📝 Using fallback text extraction');
         }
       }
       
-      console.log('Parsed job titles array:', jobTitles);
-      console.log('Number of jobs parsed:', jobTitles.length);
+      console.log('Parsed job data:', jobData);
+      console.log('Number of jobs parsed:', jobData.length);
+      console.log('Is structured data:', isStructuredData);
       
-      // Convert to JobTitle format
-      const formattedJobs = jobTitles
+      // Convert to JobTitle format with enhanced fields
+      const formattedJobs = jobData
         .slice(0, 15) // Limit to 15 jobs
-        .map((title, index) => ({
-          id: `grok-${Date.now()}-${index}`,
-          label: this.normalizeJobTitle(title)
-        }));
+        .map((job, index) => {
+          const jobTitle: JobTitle = {
+            id: `grok-${Date.now()}-${index}`,
+            label: this.normalizeJobTitle(job.title || job),
+            source: 'live',
+            fetchedAt: new Date().toISOString()
+          };
+          
+          // Add enhanced fields if available
+          if (isStructuredData && typeof job === 'object') {
+            if (job.description) {
+              jobTitle.description = job.description;
+            }
+            if (job.skills && Array.isArray(job.skills)) {
+              jobTitle.skills = job.skills;
+            }
+            if (job.trends) {
+              jobTitle.trends = job.trends;
+            }
+            if (job.averageSalary) {
+              jobTitle.averageSalary = job.averageSalary;
+            }
+            if (job.experienceLevel) {
+              jobTitle.experienceLevel = job.experienceLevel;
+            }
+            if (job.company) {
+              jobTitle.company = job.company;
+            }
+            if (job.location) {
+              jobTitle.location = job.location;
+            }
+          }
+          
+          return jobTitle;
+        });
       
       console.log('✅ Successfully parsed', formattedJobs.length, 'job titles');
+      console.log('=====================================');
+      console.log('JOB DATA VERIFICATION:');
+      console.log('=====================================');
+      
+      let jobsWithDescriptions = 0;
+      let jobsWithSkills = 0;
+      let jobsWithTrends = 0;
+      let jobsWithCompanies = 0;
+      let jobsWithLocations = 0;
+      
       formattedJobs.forEach((job, index) => {
-        console.log(`  ${index + 1}. ${job.label}`);
+        console.log(`\n${index + 1}. ${job.label}`);
+        
+        if (job.company) {
+          jobsWithCompanies++;
+          console.log(`   ✓ Company: ${job.company}`);
+        } else {
+          console.log(`   ✗ No company specified`);
+        }
+        
+        if (job.location) {
+          jobsWithLocations++;
+          console.log(`   ✓ Location: ${job.location}`);
+        }
+        
+        if (job.description) {
+          jobsWithDescriptions++;
+          console.log(`   ✓ Description: ${job.description.substring(0, 80)}...`);
+        } else {
+          console.log(`   ✗ No description`);
+        }
+        
+        if (job.skills && job.skills.length > 0) {
+          jobsWithSkills++;
+          console.log(`   ✓ Skills: ${job.skills.join(', ')}`);
+        }
+        
+        if (job.trends) {
+          jobsWithTrends++;
+          console.log(`   ✓ Trends: ${job.trends}`);
+        }
+        
+        if (job.averageSalary) {
+          console.log(`   ✓ Salary: ${job.averageSalary}`);
+        }
       });
+      
+      console.log('\n=====================================');
+      console.log('SUMMARY:');
+      console.log(`Jobs with companies: ${jobsWithCompanies}/${formattedJobs.length}`);
+      console.log(`Jobs with locations: ${jobsWithLocations}/${formattedJobs.length}`);
+      console.log(`Jobs with descriptions: ${jobsWithDescriptions}/${formattedJobs.length}`);
+      console.log(`Jobs with skills: ${jobsWithSkills}/${formattedJobs.length}`);
+      console.log(`Jobs with trends: ${jobsWithTrends}/${formattedJobs.length}`);
+      console.log('=====================================');
       
       return formattedJobs;
       
@@ -423,9 +565,11 @@ Format: ["Job 1", "Job 2", ...]`;
     try {
       const cacheData = {
         ...result,
-        cachedAt: Date.now()
+        cachedAt: Date.now(),
+        cacheVersion: '2.0' // Version for cache migration handling
       };
       localStorage.setItem(this.cacheKey, JSON.stringify(cacheData));
+      console.log('📦 Cached enhanced job data with descriptions');
     } catch (error) {
       console.warn('Failed to cache job titles:', error);
     }
@@ -442,9 +586,22 @@ Format: ["Job 1", "Job 2", ...]`;
       const data = JSON.parse(cached);
       const age = Date.now() - (data.cachedAt || 0);
       
+      // Check cache version - clear old cache format
+      if (!data.cacheVersion || data.cacheVersion < '2.0') {
+        console.log('🔄 Clearing old cache format');
+        localStorage.removeItem(this.cacheKey);
+        return null;
+      }
+      
       if (age > this.cacheDuration) {
         localStorage.removeItem(this.cacheKey);
         return null;
+      }
+      
+      // Log if cached jobs have descriptions
+      const jobsWithDescriptions = data.jobs?.filter((j: JobTitle) => j.description).length || 0;
+      if (jobsWithDescriptions > 0) {
+        console.log(`📦 Cache contains ${jobsWithDescriptions}/${data.jobs?.length} jobs with descriptions`);
       }
       
       return {

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
-import { Observable, BehaviorSubject, combineLatest } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { Observable, BehaviorSubject, combineLatest, forkJoin, of } from 'rxjs';
+import { map, switchMap, catchError } from 'rxjs/operators';
 import { 
   CourseWithSyllabus, 
   GapAnalysisResult, 
@@ -8,6 +8,7 @@ import {
   SyllabusComparisonResult 
 } from '../../shared/interfaces/syllabus.models';
 import { JobTitle } from '../../shared/interfaces/data-models';
+import { JobDescriptionAnalysisService, JobSkillExtraction, SyllabusGapAnalysis } from './job-description-analysis.service';
 
 @Injectable({
   providedIn: 'root'
@@ -15,9 +16,10 @@ import { JobTitle } from '../../shared/interfaces/data-models';
 export class GapAnalysisService {
   private gapAnalysisResults$ = new BehaviorSubject<GapAnalysisResult[]>([]);
   private curriculumReport$ = new BehaviorSubject<CurriculumGapReport | null>(null);
+  private jobSkillsCache = new Map<string, JobSkillExtraction>();
   
-  // Industry-required skills mapped to job roles
-  private industrySkillsMap: Map<string, string[]> = new Map([
+  // Fallback industry-required skills for when JD is not available
+  private fallbackSkillsMap: Map<string, string[]> = new Map([
     ['Software Engineer', [
       'Python Programming', 'Java Programming', 'Data Structures', 
       'Algorithms', 'System Design', 'Database Management', 
@@ -45,12 +47,35 @@ export class GapAnalysisService {
     ]]
   ]);
 
-  constructor() {}
+  constructor(
+    private jobDescriptionAnalysis: JobDescriptionAnalysisService
+  ) {}
 
   /**
-   * Analyze gaps for a single course against job requirements
+   * Analyze gaps for a single course against job requirements using JD when available
    */
   analyzeCourseGaps(
+    course: CourseWithSyllabus, 
+    targetJobs: JobTitle[]
+  ): Observable<GapAnalysisResult> {
+    const courseTopics = course.syllabus?.keyTopics || [];
+    
+    // If jobs have descriptions, use JD-based analysis
+    const jobsWithDescriptions = targetJobs.filter(j => j.description);
+    
+    if (jobsWithDescriptions.length > 0) {
+      // Use JD-based analysis for jobs with descriptions
+      return this.analyzeWithJobDescriptions(course, targetJobs, courseTopics);
+    } else {
+      // Fallback to traditional analysis
+      return of(this.analyzeCourseGapsTraditional(course, targetJobs));
+    }
+  }
+
+  /**
+   * Traditional gap analysis (fallback when no JD available)
+   */
+  private analyzeCourseGapsTraditional(
     course: CourseWithSyllabus, 
     targetJobs: JobTitle[]
   ): GapAnalysisResult {
@@ -90,6 +115,128 @@ export class GapAnalysisService {
   }
 
   /**
+   * JD-based gap analysis using actual job descriptions
+   */
+  private analyzeWithJobDescriptions(
+    course: CourseWithSyllabus,
+    targetJobs: JobTitle[],
+    courseTopics: string[]
+  ): Observable<GapAnalysisResult> {
+    // Extract skills from all job descriptions
+    const skillExtractions$ = targetJobs.map(job => 
+      this.jobDescriptionAnalysis.extractSkillsFromJobDescription(job)
+    );
+
+    return forkJoin(skillExtractions$).pipe(
+      switchMap(extractions => {
+        // Cache extractions
+        extractions.forEach(ext => {
+          this.jobSkillsCache.set(ext.jobId, ext);
+        });
+
+        // Combine all extracted skills and technologies
+        const allRequiredSkills = new Set<string>();
+        const allTechnologies = new Set<string>();
+        
+        extractions.forEach(ext => {
+          ext.extractedSkills.forEach(skill => allRequiredSkills.add(skill));
+          ext.requiredTechnologies.forEach(tech => allTechnologies.add(tech));
+        });
+
+        const requiredSkillsArray = Array.from(allRequiredSkills);
+        const requiredTechArray = Array.from(allTechnologies);
+
+        // Analyze gaps with JD-extracted skills
+        return this.jobDescriptionAnalysis.analyzeSyllabusGapsWithJobDescription(
+          targetJobs[0], // Use first job as reference
+          courseTopics,
+          course.syllabus
+        ).pipe(
+          map(gapAnalysis => {
+            // Calculate coverage based on JD requirements
+            const coveredTopics = gapAnalysis.matchedTopics;
+            const missingTopics = [...gapAnalysis.missingSkills, ...requiredTechArray.filter(
+              tech => !coveredTopics.some(topic => 
+                topic.toLowerCase().includes(tech.toLowerCase())
+              )
+            )];
+
+            const coveragePercentage = gapAnalysis.alignmentScore * 100;
+
+            // Generate JD-based recommendations
+            const recommendations = this.generateJDBasedRecommendations(
+              gapAnalysis,
+              extractions,
+              course.category
+            );
+
+            return {
+              courseId: course.id,
+              courseTitle: course.title,
+              coveredTopics,
+              missingTopics,
+              suggestedTopics: gapAnalysis.suggestedTopics,
+              coveragePercentage,
+              recommendations,
+              jdBasedAnalysis: true,
+              syllabusEnhancements: gapAnalysis.syllabusEnhancements
+            } as GapAnalysisResult;
+          })
+        );
+      }),
+      catchError(() => {
+        // Fallback to traditional analysis on error
+        return of(this.analyzeCourseGapsTraditional(course, targetJobs));
+      })
+    );
+  }
+
+  /**
+   * Generate recommendations based on JD analysis
+   */
+  private generateJDBasedRecommendations(
+    gapAnalysis: SyllabusGapAnalysis,
+    skillExtractions: JobSkillExtraction[],
+    courseCategory: string
+  ): string[] {
+    const recommendations: string[] = [];
+    
+    // High priority enhancements from JD
+    const highPriorityEnhancements = gapAnalysis.syllabusEnhancements
+      ?.filter(e => e.priority === 'high')
+      .slice(0, 3);
+    
+    highPriorityEnhancements?.forEach(enhancement => {
+      recommendations.push(
+        `Add ${enhancement.suggestedAddition} (Required by: ${enhancement.sourceJobRequirement})`
+      );
+    });
+
+    // Common technologies across multiple JDs
+    const techFrequency = new Map<string, number>();
+    skillExtractions.forEach(ext => {
+      ext.requiredTechnologies.forEach(tech => {
+        techFrequency.set(tech, (techFrequency.get(tech) || 0) + 1);
+      });
+    });
+
+    const commonTechs = Array.from(techFrequency.entries())
+      .filter(([_, count]) => count >= 2)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3);
+
+    commonTechs.forEach(([tech, count]) => {
+      if (!recommendations.some(r => r.includes(tech))) {
+        recommendations.push(
+          `Include ${tech} - required by ${count} job postings`
+        );
+      }
+    });
+
+    return recommendations.slice(0, 5);
+  }
+
+  /**
    * Analyze gaps across entire curriculum
    */
   analyzeCurriculumGaps(
@@ -98,12 +245,12 @@ export class GapAnalysisService {
   ): CurriculumGapReport {
     const gapsByCategory = new Map<string, GapAnalysisResult[]>();
     const allGapResults: GapAnalysisResult[] = [];
-    
-    // Analyze each course
+
+    // Analyze each course synchronously (using traditional method for consistency)
     for (const course of courses) {
-      const gapResult = this.analyzeCourseGaps(course, targetJobs);
+      const gapResult = this.analyzeCourseGapsTraditional(course, targetJobs);
       allGapResults.push(gapResult);
-      
+
       const category = course.category || 'Uncategorized';
       if (!gapsByCategory.has(category)) {
         gapsByCategory.set(category, []);
@@ -177,8 +324,19 @@ export class GapAnalysisService {
     const allSkills = new Set<string>();
     
     jobs.forEach(job => {
-      const jobSkills = this.industrySkillsMap.get(job.label) || [];
-      jobSkills.forEach(skill => allSkills.add(skill));
+      // First check if we have JD-extracted skills in cache
+      const cachedExtraction = this.jobSkillsCache.get(job.id);
+      if (cachedExtraction) {
+        cachedExtraction.extractedSkills.forEach(skill => allSkills.add(skill));
+        cachedExtraction.requiredTechnologies.forEach(tech => allSkills.add(tech));
+      } else if (job.skills && job.skills.length > 0) {
+        // Use skills from job object if available
+        job.skills.forEach(skill => allSkills.add(skill));
+      } else {
+        // Fallback to predefined skills map
+        const jobSkills = this.fallbackSkillsMap.get(job.label) || [];
+        jobSkills.forEach(skill => allSkills.add(skill));
+      }
     });
     
     return Array.from(allSkills);

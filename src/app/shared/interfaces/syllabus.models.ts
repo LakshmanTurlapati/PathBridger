@@ -43,6 +43,15 @@ export interface GapAnalysisResult {
   suggestedTopics: string[];
   coveragePercentage: number;
   recommendations: string[];
+  jdBasedAnalysis?: boolean;
+  syllabusEnhancements?: Array<{
+    weekNumber?: number;
+    currentTopic?: string;
+    suggestedAddition: string;
+    rationale: string;
+    priority: 'high' | 'medium' | 'low';
+    sourceJobRequirement: string;
+  }>;
 }
 
 export interface CurriculumGapReport {

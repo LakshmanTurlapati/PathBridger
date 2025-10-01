@@ -12,6 +12,7 @@ import { JobScraperService } from './core/services/job-scraper.service';
 
 import { SettingsDialogComponent } from './components/settings-dialog/settings-dialog.component';
 import { JobDialogComponent, JobDialogData, JobDialogResult } from './components/job-dialog/job-dialog.component';
+import { JobDetailsDialogComponent } from './components/job-details-dialog/job-details-dialog.component';
 import { SyllabusDialogComponent, SyllabusDialogData } from './components/syllabus-dialog/syllabus-dialog.component';
 import { CourseWithSyllabus } from './shared/interfaces/syllabus.models';
 
@@ -636,7 +637,7 @@ export class App implements OnInit, OnDestroy {
       const suggestionsData = this.suggestedCourses.map(suggestion => ({
         'Course Title': suggestion.title,
         'Confidence Score': `${(suggestion.confidence * 100).toFixed(0)}%`,
-        'Related Jobs': suggestion.related_jobs.join(', '),
+        'Related Jobs': (suggestion.related_jobs || []).join(', '),
         'Status': 'Suggested'
       }));
       
@@ -764,8 +765,8 @@ export class App implements OnInit, OnDestroy {
           <div class="suggestion-row">
             <h4>${suggestion.title}</h4>
             <p><strong>Confidence:</strong> ${(suggestion.confidence * 100).toFixed(0)}%</p>
-            <p><strong>For Jobs:</strong> ${suggestion.related_jobs.join(', ')}</p>
-            <p><strong>Skills:</strong> ${suggestion.skill_gaps.join(', ')}</p>
+            <p><strong>For Jobs:</strong> ${(suggestion.related_jobs || []).join(', ')}</p>
+            <p><strong>Skills:</strong> ${(suggestion.skill_gaps || []).join(', ')}</p>
             <p><em>${suggestion.reasoning}</em></p>
           </div>
         `).join('')}
@@ -1483,6 +1484,72 @@ export class App implements OnInit, OnDestroy {
     return new Date(timestamp).toLocaleTimeString();
   }
 
+  // Helper methods for job descriptions
+  getJobTooltip(job: JobTitle): string {
+    let tooltip = job.label;
+    
+    if (job.description) {
+      tooltip += `\n\n${job.description}`;
+    }
+    
+    if (job.skills && job.skills.length > 0) {
+      tooltip += `\n\nKey Skills: ${job.skills.join(', ')}`;
+    }
+    
+    if (job.trends) {
+      tooltip += `\n\nMarket Trend: ${job.trends}`;
+    }
+    
+    if (job.averageSalary) {
+      tooltip += `\n\nAverage Salary: ${job.averageSalary}`;
+    }
+    
+    if (job.experienceLevel) {
+      const levelMap: { [key: string]: string } = {
+        'entry': 'Entry Level',
+        'mid': 'Mid-Level',
+        'senior': 'Senior Level',
+        'lead': 'Lead/Principal'
+      };
+      tooltip += `\n\nExperience: ${levelMap[job.experienceLevel] || job.experienceLevel}`;
+    }
+    
+    return tooltip;
+  }
+
+  getJobDescriptionForMapping(jobLabel: string): string {
+    const job = this.jobTitles.find(j => j.label === jobLabel);
+    if (!job) return jobLabel;
+    return this.getJobTooltip(job);
+  }
+
+  hasJobDescription(jobLabel: string): boolean {
+    const job = this.jobTitles.find(j => j.label === jobLabel);
+    return !!job?.description;
+  }
+
+  // Job Details Dialog Methods
+  showJobDetails(job: JobTitle): void {
+    const dialogRef = this.dialog.open(JobDetailsDialogComponent, {
+      data: job,
+      width: '600px',
+      maxWidth: '90vw',
+      panelClass: 'job-details-dialog'
+    });
+  }
+
+  showJobDetailsByLabel(jobLabel: string): void {
+    const job = this.jobTitles.find(j => j.label === jobLabel);
+    if (job) {
+      this.showJobDetails(job);
+    }
+  }
+
+  showAllJobs(): void {
+    // TODO: Implement a dialog to show all jobs
+    console.log('Show all jobs - to be implemented');
+  }
+
   // Notification helpers
   private showSuccess(message: string): void {
     this.snackBar.open(message, 'Close', {
@@ -1558,8 +1625,8 @@ export class App implements OnInit, OnDestroy {
         content: `
           <h3>${suggestion.title}</h3>
           <p><strong>Confidence:</strong> ${(suggestion.confidence * 100).toFixed(0)}%</p>
-          <p><strong>For Jobs:</strong> ${suggestion.related_jobs.join(', ')}</p>
-          <p><strong>Skill Gaps:</strong> ${suggestion.skill_gaps.join(', ')}</p>
+          <p><strong>For Jobs:</strong> ${(suggestion.related_jobs || []).join(', ')}</p>
+          <p><strong>Skill Gaps:</strong> ${(suggestion.skill_gaps || []).join(', ')}</p>
           <p><strong>Reasoning:</strong> ${suggestion.reasoning}</p>
         `,
         mode: 'view'
@@ -1576,9 +1643,9 @@ export class App implements OnInit, OnDestroy {
 
   getSuggestionTooltip(suggestion: SuggestedCourse): string {
     if (suggestion.improvement_type === 'enhanced_syllabus') {
-      return `Enhanced syllabus for: ${suggestion.related_jobs.join(', ')} - Click to view improvements`;
+      return `Enhanced syllabus for: ${(suggestion.related_jobs || []).join(', ')} - Click to view improvements`;
     }
-    return `For: ${suggestion.related_jobs.join(', ')} - Click to view details`;
+    return `For: ${(suggestion.related_jobs || []).join(', ')} - Click to view details`;
   }
 
   // Syllabus-related methods

@@ -148,10 +148,22 @@
               <h4>Selected Job Titles ({{ jobTitles.length }})</h4>
               <div class="job-chips">
                 <mat-chip-set>
-                  <mat-chip *ngFor="let job of jobTitles.slice(0, 5)">
-                    {{ job.label }}
+                  <mat-chip 
+                    *ngFor="let job of jobTitles.slice(0, 5)"
+                    (click)="showJobDetails(job)"
+                    class="clickable-chip"
+                    [matTooltip]="'Click to view details'"
+                    matTooltipPosition="above">
+                    <mat-icon *ngIf="job.source === 'live'" class="job-source-icon">trending_up</mat-icon>
+                    <span class="job-chip-content">
+                      {{ job.label }}
+                      <span *ngIf="job.company" class="job-company">@ {{ job.company }}</span>
+                    </span>
+                    <mat-icon *ngIf="job.description" class="job-info-icon">info</mat-icon>
                   </mat-chip>
-                  <mat-chip *ngIf="jobTitles.length > 5">
+                  <mat-chip 
+                    *ngIf="jobTitles.length > 5"
+                    (click)="showAllJobs()">
                     +{{ jobTitles.length - 5 }} more
                   </mat-chip>
                 </mat-chip-set>
@@ -321,9 +333,12 @@
                 </h4>
                 <div class="mapping-grid">
                   <div class="mapping-card" *ngFor="let mapping of mappingsArray.slice(0, 5)">
-                    <div class="job-section">
+                    <div class="job-section clickable" 
+                         (click)="showJobDetailsByLabel(mapping.job)"
+                         matTooltip="Click to view job details">
                       <mat-icon>work</mat-icon>
                       <span class="job-title">{{ mapping.job }}</span>
+                      <mat-icon *ngIf="hasJobDescription(mapping.job)" class="job-info-icon">info</mat-icon>
                     </div>
                     <mat-icon class="mapping-arrow">arrow_forward</mat-icon>
                     <div class="course-section clickable" 

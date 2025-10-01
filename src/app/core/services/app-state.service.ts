@@ -299,7 +299,8 @@ export class AppStateService {
     return {
       job_titles: state.jobTitles.map(job => job.label),
       courses: state.courses.map(course => course.label),
-      max_courses_per_job: 1
+      max_courses_per_job: 1,
+      job_data: state.jobTitles // Pass full job data including descriptions
     };
   }
 

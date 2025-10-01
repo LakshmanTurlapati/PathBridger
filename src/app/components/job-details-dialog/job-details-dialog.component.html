@@ -1,0 +1,120 @@
+<h2 mat-dialog-title>
+  <mat-icon class="title-icon">work</mat-icon>
+  {{ job.label }}
+</h2>
+
+<mat-dialog-content>
+  <!-- Description Section -->
+  <div class="detail-section" *ngIf="job.description">
+    <h3>
+      <mat-icon>description</mat-icon>
+      Role Description
+    </h3>
+    <p class="description-text">{{ job.description }}</p>
+  </div>
+
+  <!-- Skills Section -->
+  <div class="detail-section" *ngIf="job.skills && job.skills.length > 0">
+    <h3>
+      <mat-icon>code</mat-icon>
+      Key Skills Required
+    </h3>
+    <div class="skills-container">
+      <mat-chip-set>
+        <mat-chip *ngFor="let skill of job.skills" class="skill-chip">
+          <mat-icon matChipAvatar>check_circle</mat-icon>
+          {{ skill }}
+        </mat-chip>
+      </mat-chip-set>
+    </div>
+  </div>
+
+  <!-- Market Information -->
+  <div class="detail-section info-grid">
+    <div class="info-card" *ngIf="job.trends">
+      <mat-icon color="accent">trending_up</mat-icon>
+      <div>
+        <h4>Market Trend</h4>
+        <p>{{ job.trends }}</p>
+      </div>
+    </div>
+
+    <div class="info-card" *ngIf="job.averageSalary">
+      <mat-icon color="primary">payments</mat-icon>
+      <div>
+        <h4>Average Salary</h4>
+        <p>{{ job.averageSalary }}</p>
+      </div>
+    </div>
+
+    <div class="info-card" *ngIf="job.experienceLevel">
+      <mat-icon color="warn">school</mat-icon>
+      <div>
+        <h4>Experience Level</h4>
+        <p>{{ getExperienceLevelLabel() }}</p>
+      </div>
+    </div>
+
+    <div class="info-card" *ngIf="job.source">
+      <mat-icon>source</mat-icon>
+      <div>
+        <h4>Data Source</h4>
+        <p class="source-label">{{ job.source === 'live' ? 'Live Market Data' : job.source === 'cached' ? 'Cached Data' : 'Manual Entry' }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- No Details Message -->
+  <div class="no-details" *ngIf="!hasDetails()">
+    <mat-icon>info_outline</mat-icon>
+    <p>No additional details available for this job title.</p>
+    <p class="hint">Try refreshing job data to fetch the latest information.</p>
+  </div>
+</mat-dialog-content>
+
+<div class="dialog-footer">
+  <div class="footer-content">
+    <div class="footer-row">
+      <div class="footer-info">
+        <mat-icon>{{ job.company ? 'business' : 'analytics' }}</mat-icon>
+        <div class="footer-text">
+          <strong>{{ job.company || 'Company Not Specified' }}</strong>
+          <span class="footer-subtitle" *ngIf="job.location">{{ job.location }}</span>
+          <span class="footer-subtitle" *ngIf="!job.location && job.company">Technology Company</span>
+          <span class="footer-subtitle" *ngIf="!job.company">Industry-wide role information</span>
+        </div>
+      </div>
+      
+      <div class="footer-meta">
+        <span class="meta-label">Data Type:</span>
+        <span class="meta-value">
+          {{ getDataSourceText() }}
+          <mat-icon 
+            class="help-icon" 
+            [matTooltip]="getDataSourceTooltip()"
+            matTooltipPosition="above">
+            help_outline
+          </mat-icon>
+        </span>
+        <span *ngIf="job.fetchedAt" class="fetch-time">
+          <mat-icon class="time-icon">schedule</mat-icon>
+          {{ getTimeAgo() }}
+        </span>
+      </div>
+    </div>
+    
+    <div class="disclaimer" *ngIf="!job.company">
+      <mat-icon>info</mat-icon>
+      <span>This is career planning information showing typical industry requirements. Company information was not available for this role.</span>
+    </div>
+    
+    <div class="disclaimer success" *ngIf="job.company">
+      <mat-icon>verified</mat-icon>
+      <span>This information is based on current market data. Please verify job openings directly on the company's careers page.</span>
+    </div>
+  </div>
+</div>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="close()">Close</button>
+</mat-dialog-actions>

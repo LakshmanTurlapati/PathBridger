@@ -140,6 +140,83 @@
       color: white !important;
     }
   }
+
+  .fetched-jobs-list {
+    mat-expansion-panel {
+      margin-bottom: 8px;
+      
+      mat-expansion-panel-header {
+        mat-panel-title {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          
+          .job-icon {
+            font-size: 18px;
+            width: 18px;
+            height: 18px;
+            color: #1976d2;
+          }
+          
+          .trend-chip {
+            margin-left: auto;
+            font-size: 11px;
+            min-height: 20px;
+            padding: 0 8px;
+            background-color: #4caf50 !important;
+            color: white !important;
+          }
+        }
+      }
+      
+      .job-details {
+        padding: 16px;
+        
+        .job-description {
+          margin: 0 0 16px 0;
+          color: rgba(0, 0, 0, 0.87);
+          line-height: 1.5;
+        }
+        
+        .job-skills {
+          margin-bottom: 16px;
+          
+          strong {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: rgba(0, 0, 0, 0.6);
+          }
+          
+          mat-chip {
+            font-size: 12px;
+            min-height: 24px;
+            background-color: #e0e0e0 !important;
+          }
+        }
+        
+        .job-metadata {
+          display: flex;
+          gap: 16px;
+          
+          .metadata-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 13px;
+            color: rgba(0, 0, 0, 0.6);
+            
+            mat-icon {
+              font-size: 16px;
+              width: 16px;
+              height: 16px;
+              color: #1976d2;
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 .selection-summary {

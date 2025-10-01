@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable, throwError, of } from 'rxjs';
+import { Observable, throwError, of, forkJoin } from 'rxjs';
 import { map, catchError, retry, timeout, switchMap } from 'rxjs/operators';
+import { JobDescriptionAnalysisService } from './job-description-analysis.service';
 import { 
   AnalysisRequest, 
   AnalysisResponse, 
@@ -20,11 +21,13 @@ import { SettingsService } from './settings.service';
 })
 export class AiClientService {
   private readonly apiUrl = APP_CONSTANTS.GROK_API.BASE_URL;
-  private readonly requestTimeout = 30000; // 30 seconds
+  private readonly baseTimeout = 45000; // 45 seconds base timeout
+  private requestTimeout = this.baseTimeout; // Dynamic timeout
 
   constructor(
     private http: HttpClient,
-    private settingsService: SettingsService
+    private settingsService: SettingsService,
+    private jobDescriptionAnalysis: JobDescriptionAnalysisService
   ) {}
 
   /**
@@ -37,8 +40,13 @@ export class AiClientService {
       return throwError(() => new Error('Grok API key not configured'));
     }
 
-    // Step 1: Determine educational adequacy thresholds
-    return this.determineThresholds(request.job_titles, apiKey).pipe(
+    // Calculate dynamic timeout based on job count and JD presence
+    const jobsWithDescriptions = request.job_data?.filter(j => j.description).length || 0;
+    this.requestTimeout = this.calculateDynamicTimeout(request.job_titles.length, jobsWithDescriptions);
+    console.log(`Using dynamic timeout: ${this.requestTimeout}ms for ${request.job_titles.length} jobs (${jobsWithDescriptions} with descriptions)`);
+
+    // Step 1: Determine educational adequacy thresholds with fallback
+    return this.determineThresholdsWithFallback(request, apiKey).pipe(
       // Step 2: Create job-to-course mappings
       switchMap(thresholds => {
         return this.processMappingsAndSuggestions({ thresholds, request, apiKey });
@@ -51,13 +59,25 @@ export class AiClientService {
    * Step 1: Determine educational adequacy thresholds for each job
    * Implements V1's determine_educational_adequacy_threshold_tool
    */
-  private determineThresholds(jobTitles: string[], apiKey: string): Observable<{ [jobTitle: string]: number }> {
+  private determineThresholds(jobTitles: string[], apiKey: string, useSimplified: boolean = false): Observable<{ [jobTitle: string]: number }> {
     const prompt = this.createThresholdAnalysisPrompt(jobTitles);
+    // Use lower reasoning effort when we have many jobs or JDs to process
+    const reasoningEffort = useSimplified ? 'low' : (jobTitles.length > 7 ? 'medium' : 'high');
     
-    return this.callGrokApi(prompt, apiKey, 'high').pipe(
+    return this.callGrokApi(prompt, apiKey, reasoningEffort).pipe(
       map(response => this.parseThresholdResponse(response)),
-      retry(2),
-      timeout(this.requestTimeout)
+      retry(useSimplified ? 0 : 1), // Less retries for simplified
+      timeout(useSimplified ? 15000 : Math.min(this.requestTimeout, 30000)) // Shorter timeout for thresholds
+    );
+  }
+
+  private determineThresholdsWithFallback(request: AnalysisRequest, apiKey: string): Observable<{ [jobTitle: string]: number }> {
+    return this.determineThresholds(request.job_titles, apiKey).pipe(
+      catchError(error => {
+        console.warn('Threshold determination failed, using intelligent defaults:', error.message);
+        // Return intelligent defaults based on job titles
+        return of(this.generateDefaultThresholds(request.job_titles));
+      })
     );
   }
 
@@ -111,8 +131,8 @@ MANDATORY RESPONSE FORMAT (return valid JSON only):
       text = this.extractAndCleanJSON(text);
       
       if (!text) {
-        console.log('No valid JSON found in threshold response, using defaults');
-        return this.getDefaultThresholds(response);
+        console.log('No valid JSON found in threshold response, will use intelligent defaults');
+        throw new Error('Invalid threshold response format');
       }
 
       const parsed = JSON.parse(text);
@@ -219,10 +239,23 @@ MANDATORY RESPONSE FORMAT (return valid JSON only):
     console.log('🗺️ CREATING MAPPINGS & SUGGESTIONS');
     console.log('-------------------------------------');
     
-    // Create job-to-course mappings
-    const mappingPrompt = this.createMappingPrompt(request.job_titles, request.courses, thresholds);
+    // Extract job descriptions if available
+    const jobDescriptions = new Map<string, string>();
+    if (request.job_data) {
+      request.job_data.forEach(job => {
+        if (job.description) {
+          jobDescriptions.set(job.label, job.description);
+        }
+      });
+    }
     
-    return this.callGrokApi(mappingPrompt, apiKey, 'high').pipe(
+    // Create job-to-course mappings with JD context
+    const mappingPrompt = this.createMappingPrompt(request.job_titles, request.courses, thresholds, jobDescriptions);
+    
+    // Use lower reasoning effort when we have many JDs to process
+    const reasoningEffort = jobDescriptions.size > 5 ? 'medium' : 'high';
+    
+    return this.callGrokApi(mappingPrompt, apiKey, reasoningEffort).pipe(
       map(response => {
         let mappings = this.parseMappingResponse(response);
         
@@ -236,7 +269,7 @@ MANDATORY RESPONSE FORMAT (return valid JSON only):
           mappings = this.attemptFallbackMapping(request.job_titles, request.courses, mappings);
         }
         
-        const analysisResults = this.analyzeResults(mappings, thresholds, request.job_titles, request.courses, apiKey);
+        const analysisResults = this.analyzeResults(mappings, thresholds, request.job_titles, request.courses, apiKey, request);
         
         return {
           success: true,
@@ -255,9 +288,9 @@ MANDATORY RESPONSE FORMAT (return valid JSON only):
   }
 
   /**
-   * Create mapping prompt with threshold context
+   * Create mapping prompt with threshold and JD context
    */
-  private createMappingPrompt(jobTitles: string[], courses: string[], thresholds: { [jobTitle: string]: number }): string {
+  private createMappingPrompt(jobTitles: string[], courses: string[], thresholds: { [jobTitle: string]: number }, jobDescriptions?: Map<string, string>): string {
     const thresholdContext = Object.entries(thresholds)
       .map(([job, threshold]) => `- ${job}: ${(threshold * 100).toFixed(0)}% adequacy threshold`)
       .join('\n');
@@ -267,18 +300,22 @@ MANDATORY RESPONSE FORMAT (return valid JSON only):
 CONTEXT: Each job has a different educational adequacy threshold:
 ${thresholdContext}
 
+JOB DESCRIPTIONS CONTEXT:
+${this.formatJobDescriptionsForPrompt(jobTitles, jobDescriptions)}
+
 CRITICAL RULES:
-1. ALWAYS prioritize mapping to EXISTING AVAILABLE COURSES first
-2. Map each job to the BEST MATCHING available course from the list provided
-3. Use confidence levels as follows:
-   - 90-100%: Perfect match
-   - 70-89%: Good match (STILL MAP IT)
-   - 60-69%: Acceptable match (STILL MAP IT)
-   - 50-59%: Marginal match (STILL MAP IT if course available)
-   - Below 50%: Only then skip mapping
+1. ANALYZE job descriptions to understand SPECIFIC skills and technologies required
+2. Map each job to the course that BEST COVERS the skills mentioned in its job description
+3. Use confidence levels based on JD-to-course alignment:
+   - 90-100%: Course covers most JD requirements
+   - 70-89%: Course covers core JD requirements
+   - 60-69%: Course covers some JD requirements
+   - 50-59%: Course provides foundation for JD skills
+   - Below 50%: Minimal JD coverage
 4. Consider the SPECIFIC adequacy threshold for each job
 5. NEVER suggest new courses - ALWAYS use existing courses even if imperfect
-6. Return response as valid JSON only
+6. When job has a description, prioritize JD requirements over generic job title assumptions
+7. Return response as valid JSON only
 
 MANDATORY: You have ${courses.length} courses available. You MUST use existing courses for ALL jobs. Do NOT suggest any new courses under any circumstances.
 
@@ -355,7 +392,8 @@ MANDATORY RESPONSE FORMAT (return valid JSON only):
     thresholds: { [jobTitle: string]: number },
     jobTitles: string[],
     courses: string[],
-    apiKey: string
+    apiKey: string,
+    request?: AnalysisRequest
   ): Partial<AnalysisResponse> {
     const { mappings: jobMappings, confidenceScores } = mappings;
     
@@ -380,8 +418,8 @@ MANDATORY RESPONSE FORMAT (return valid JSON only):
     let jobSuggestionMappings: { [jobTitle: string]: string } = {};
 
     if (needsSuggestions) {
-      // Only generate 1-2 suggestions for truly missing course types
-      const suggestions = this.generateMinimalSuggestions(unmappedJobs, courses, thresholds);
+      // Generate JD-based suggestions for missing course types
+      const suggestions = this.generateMinimalSuggestions(unmappedJobs, courses, thresholds, request);
       suggestedCourses = suggestions.suggestedCourses;
       jobSuggestionMappings = suggestions.jobSuggestionMappings;
     }
@@ -395,22 +433,41 @@ MANDATORY RESPONSE FORMAT (return valid JSON only):
   }
 
   /**
-   * Generate minimal suggested courses only when absolutely necessary
+   * Generate minimal suggested courses based on JD requirements
    */
-  private generateMinimalSuggestions(unmappedJobs: string[], existingCourses: string[], thresholds: { [jobTitle: string]: number }): {
+  private generateMinimalSuggestions(unmappedJobs: string[], existingCourses: string[], thresholds: { [jobTitle: string]: number }, request?: AnalysisRequest): {
     suggestedCourses: SuggestedCourse[],
     jobSuggestionMappings: { [jobTitle: string]: string }
   } {
     const suggestedCourses: SuggestedCourse[] = [];
     const jobSuggestionMappings: { [jobTitle: string]: string } = {};
 
-    // Group unmapped jobs by skill category to minimize suggestions
-    const jobGroups = this.groupJobsBySkillCategory(unmappedJobs);
+    // Extract skills from job descriptions if available
+    const jobDescriptionSkills = new Map<string, Set<string>>();
+    if (request?.job_data) {
+      unmappedJobs.forEach(jobTitle => {
+        const job = request.job_data?.find(j => j.label === jobTitle);
+        if (job?.description || job?.skills) {
+          const skills = new Set<string>();
+          job.skills?.forEach(s => skills.add(s));
+          // Extract technologies from description
+          if (job.description) {
+            const techPatterns = /\b(React|Angular|Vue|Node|Python|Java|AWS|Docker|Kubernetes|MongoDB|PostgreSQL|Redis|GraphQL|REST|API|TypeScript|JavaScript)\b/gi;
+            const matches = job.description.match(techPatterns);
+            matches?.forEach(tech => skills.add(tech));
+          }
+          jobDescriptionSkills.set(jobTitle, skills);
+        }
+      });
+    }
+
+    // Group jobs by JD-extracted skills or fallback to category
+    const skillGroups = this.groupJobsByJDSkills(unmappedJobs, jobDescriptionSkills);
     
-    // Create at most 2-3 suggestions for major skill gaps only
-    Object.entries(jobGroups).slice(0, 2).forEach(([category, jobs]) => {
+    // Create suggestions based on most common missing skills from JDs
+    Object.entries(skillGroups).slice(0, 2).forEach(([skill, jobs]) => {
       if (jobs.length >= 2) { // Only suggest if multiple jobs need this skill
-        const suggestion = this.createCategorySuggestion(category, jobs, thresholds[jobs[0]] || 0.8);
+        const suggestion = this.createJDBasedSuggestion(skill, jobs, jobDescriptionSkills, thresholds[jobs[0]] || 0.8);
         suggestedCourses.push(suggestion);
         jobs.forEach(job => jobSuggestionMappings[job] = suggestion.title);
       }
@@ -656,11 +713,20 @@ MANDATORY RESPONSE FORMAT (return valid JSON only):
   /**
    * Call Grok API with proper headers and error handling
    */
-  private callGrokApi(prompt: string, apiKey: string, reasoningEffort: 'low' | 'high' = 'high'): Observable<GrokResponse> {
+  private callGrokApi(prompt: string, apiKey: string, reasoningEffort: 'low' | 'medium' | 'high' = 'high'): Observable<GrokResponse> {
     const headers = new HttpHeaders({
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`
     });
+
+    // Dynamically adjust max_tokens based on reasoning effort and prompt size
+    const baseMaxTokens = APP_CONSTANTS.GROK_API.DEFAULT_CONFIG.max_tokens;
+    let maxTokens: number = baseMaxTokens;
+    if (reasoningEffort === 'low') {
+      maxTokens = Math.min(baseMaxTokens, 1500);
+    } else if (reasoningEffort === 'medium') {
+      maxTokens = Math.min(baseMaxTokens, 2000);
+    }
 
     const request: GrokRequest = {
       model: APP_CONSTANTS.GROK_API.MODEL,
@@ -675,9 +741,9 @@ MANDATORY RESPONSE FORMAT (return valid JSON only):
         }
       ],
       temperature: APP_CONSTANTS.GROK_API.DEFAULT_CONFIG.temperature,
-      max_tokens: APP_CONSTANTS.GROK_API.DEFAULT_CONFIG.max_tokens,
+      max_tokens: maxTokens,
       top_p: APP_CONSTANTS.GROK_API.DEFAULT_CONFIG.top_p,
-      reasoning_effort: reasoningEffort
+      reasoning_effort: reasoningEffort as any
     };
 
     return this.http.post<GrokResponse>(this.apiUrl, request, { headers }).pipe(
@@ -892,5 +958,139 @@ RESPONSE FORMAT (JSON only):
       catchError(() => of(false)),
       timeout(10000)
     );
+  }
+
+  /**
+   * Calculate dynamic timeout based on job count and complexity
+   */
+  private calculateDynamicTimeout(jobCount: number, jobsWithDescriptions: number): number {
+    // Base timeout + additional time per job + extra for descriptions
+    const baseTime = this.baseTimeout;
+    const timePerJob = 2000; // 2 seconds per job
+    const timePerDescription = 3000; // 3 seconds per job with description
+    
+    const calculatedTimeout = baseTime + (jobCount * timePerJob) + (jobsWithDescriptions * timePerDescription);
+    
+    // Cap at 90 seconds to prevent excessive waits
+    return Math.min(calculatedTimeout, 90000);
+  }
+
+  /**
+   * Generate intelligent default thresholds based on job titles
+   */
+  private generateDefaultThresholds(jobTitles: string[]): { [jobTitle: string]: number } {
+    const thresholds: { [jobTitle: string]: number } = {};
+    
+    jobTitles.forEach(title => {
+      const lowerTitle = title.toLowerCase();
+      
+      // Assign thresholds based on job type
+      if (lowerTitle.includes('senior') || lowerTitle.includes('lead') || lowerTitle.includes('principal')) {
+        thresholds[title] = 0.85;
+      } else if (lowerTitle.includes('architect') || lowerTitle.includes('scientist')) {
+        thresholds[title] = 0.90;
+      } else if (lowerTitle.includes('engineer') || lowerTitle.includes('developer')) {
+        thresholds[title] = 0.80;
+      } else if (lowerTitle.includes('analyst') || lowerTitle.includes('designer')) {
+        thresholds[title] = 0.75;
+      } else if (lowerTitle.includes('manager') || lowerTitle.includes('director')) {
+        thresholds[title] = 0.70;
+      } else {
+        thresholds[title] = 0.80; // Default for unknown roles
+      }
+    });
+    
+    console.log('Using default thresholds:', thresholds);
+    return thresholds;
+  }
+
+  /**
+   * Format job descriptions for prompt inclusion (optimized)
+   */
+  private formatJobDescriptionsForPrompt(jobTitles: string[], jobDescriptions?: Map<string, string>): string {
+    if (!jobDescriptions || jobDescriptions.size === 0) {
+      return 'No job descriptions available - use job title inference';
+    }
+
+    const descriptions: string[] = [];
+    jobTitles.forEach(title => {
+      const desc = jobDescriptions.get(title);
+      if (desc) {
+        // Reduced truncation for faster processing
+        const truncated = desc.length > 200 ? desc.substring(0, 200) + '...' : desc;
+        descriptions.push(`${title}:\n${truncated}`);
+      } else {
+        descriptions.push(`${title}: [No description available]`);
+      }
+    });
+
+    return descriptions.join('\n\n');
+  }
+
+  /**
+   * Group jobs by JD-extracted skills instead of generic categories
+   */
+  private groupJobsByJDSkills(jobs: string[], jobDescriptionSkills: Map<string, Set<string>>): { [skill: string]: string[] } {
+    const skillGroups: { [skill: string]: string[] } = {};
+    
+    // Count frequency of each skill across all jobs
+    const skillFrequency = new Map<string, number>();
+    jobDescriptionSkills.forEach(skills => {
+      skills.forEach(skill => {
+        skillFrequency.set(skill, (skillFrequency.get(skill) || 0) + 1);
+      });
+    });
+
+    // Sort skills by frequency and create groups for most common ones
+    const sortedSkills = Array.from(skillFrequency.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5); // Top 5 skills
+
+    sortedSkills.forEach(([skill, _]) => {
+      skillGroups[skill] = jobs.filter(job => {
+        const jobSkills = jobDescriptionSkills.get(job);
+        return jobSkills?.has(skill);
+      });
+    });
+
+    // Fallback for jobs without JD skills
+    const jobsWithoutSkills = jobs.filter(job => !jobDescriptionSkills.has(job));
+    if (jobsWithoutSkills.length > 0) {
+      // Use traditional grouping for these
+      const traditionalGroups = this.groupJobsBySkillCategory(jobsWithoutSkills);
+      Object.assign(skillGroups, traditionalGroups);
+    }
+
+    return skillGroups;
+  }
+
+  /**
+   * Create JD-based course suggestion
+   */
+  private createJDBasedSuggestion(
+    skill: string,
+    jobs: string[],
+    jobDescriptionSkills: Map<string, Set<string>>,
+    threshold: number
+  ): SuggestedCourse {
+    // Collect all skills from these jobs
+    const allSkills = new Set<string>();
+    jobs.forEach(job => {
+      const skills = jobDescriptionSkills.get(job);
+      skills?.forEach(s => allSkills.add(s));
+    });
+
+    const skillsList = Array.from(allSkills).slice(0, 8); // Limit to 8 key skills
+
+    return {
+      title: `${skill} for Industry Applications`,
+      description: `Comprehensive course covering ${skill} with focus on practical applications required by ${jobs.length} job positions`,
+      confidence: threshold,
+      targeted_jobs: jobs,
+      key_topics: skillsList,
+      improvement_type: 'jd_based_requirement',
+      rationale: `Based on job description analysis, ${jobs.length} positions require ${skill} and related technologies: ${skillsList.slice(0, 3).join(', ')}`,
+      created_at: new Date().toISOString()
+    };
   }
 }

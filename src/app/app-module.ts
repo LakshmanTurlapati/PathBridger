@@ -31,12 +31,14 @@ import { App } from './app';
 // Components
 import { SettingsDialogComponent } from './components/settings-dialog/settings-dialog.component';
 import { JobDialogComponent } from './components/job-dialog/job-dialog.component';
+import { JobDetailsDialogComponent } from './components/job-details-dialog/job-details-dialog.component';
 
 @NgModule({
   declarations: [
     App,
     SettingsDialogComponent,
-    JobDialogComponent
+    JobDialogComponent,
+    JobDetailsDialogComponent
   ],
   imports: [
     BrowserModule,

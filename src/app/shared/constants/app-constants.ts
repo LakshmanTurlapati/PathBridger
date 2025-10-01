@@ -46,9 +46,9 @@ export const APP_CONSTANTS = {
     MODEL: 'grok-3-mini',
     DEFAULT_CONFIG: {
       temperature: 0.3,
-      max_tokens: 2048,
+      max_tokens: 1024, // Reduced for faster responses
       top_p: 0.8,
-      reasoning_effort: 'high' as 'low' | 'high'
+      reasoning_effort: 'low' as 'low' | 'high' // Low effort for faster processing
     },
     LIVE_SEARCH_CONFIG: {
       enabled: true, // Live Search enabled for real-time job data

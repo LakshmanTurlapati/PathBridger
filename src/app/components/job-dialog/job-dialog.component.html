@@ -109,16 +109,40 @@
             <mat-icon>auto_awesome</mat-icon>
             AI-Recommended Trending Jobs
           </h3>
-          <div class="fetched-jobs-chips">
-            <mat-chip-set>
-              <mat-chip 
-                *ngFor="let job of fetchedJobs" 
-                [highlighted]="true"
-                [removable]="false">
-                <mat-icon matChipAvatar>work</mat-icon>
-                {{ job.label }}
-              </mat-chip>
-            </mat-chip-set>
+          <div class="fetched-jobs-list">
+            <mat-expansion-panel *ngFor="let job of fetchedJobs" [expanded]="false">
+              <mat-expansion-panel-header>
+                <mat-panel-title>
+                  <mat-icon class="job-icon">work</mat-icon>
+                  {{ job.label }}
+                  <mat-chip *ngIf="job.trends" class="trend-chip">{{ job.trends }}</mat-chip>
+                </mat-panel-title>
+              </mat-expansion-panel-header>
+              
+              <div class="job-details">
+                <p *ngIf="job.description" class="job-description">{{ job.description }}</p>
+                
+                <div *ngIf="job.skills && job.skills.length > 0" class="job-skills">
+                  <strong>Key Skills:</strong>
+                  <mat-chip-set>
+                    <mat-chip *ngFor="let skill of job.skills" [disabled]="true">
+                      {{ skill }}
+                    </mat-chip>
+                  </mat-chip-set>
+                </div>
+                
+                <div class="job-metadata">
+                  <span *ngIf="job.averageSalary" class="metadata-item">
+                    <mat-icon>payments</mat-icon>
+                    {{ job.averageSalary }}
+                  </span>
+                  <span *ngIf="job.experienceLevel" class="metadata-item">
+                    <mat-icon>school</mat-icon>
+                    {{ getExperienceLevelLabel(job.experienceLevel) }}
+                  </span>
+                </div>
+              </div>
+            </mat-expansion-panel>
           </div>
         </div>
       </div>

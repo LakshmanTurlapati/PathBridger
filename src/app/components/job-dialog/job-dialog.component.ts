@@ -315,4 +315,15 @@ export class JobDialogComponent implements OnInit {
       return this.selectedCategoryJobs.size > 0;
     }
   }
+
+  // Get experience level label
+  getExperienceLevelLabel(level: string): string {
+    const levelMap: { [key: string]: string } = {
+      'entry': 'Entry Level',
+      'mid': 'Mid-Level',
+      'senior': 'Senior Level',
+      'lead': 'Lead/Principal'
+    };
+    return levelMap[level] || level;
+  }
 }

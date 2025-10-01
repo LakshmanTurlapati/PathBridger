@@ -3,6 +3,15 @@
 export interface JobTitle {
   id: string;
   label: string;
+  description?: string;
+  skills?: string[];
+  trends?: string;
+  source?: 'live' | 'cached' | 'manual';
+  averageSalary?: string;
+  experienceLevel?: 'entry' | 'mid' | 'senior' | 'lead';
+  company?: string;  // Company name or "Various" for aggregated data
+  location?: string; // Job location (optional)
+  fetchedAt?: string; // Timestamp when data was fetched
 }
 
 export interface Course {
@@ -13,14 +22,18 @@ export interface Course {
 export interface SuggestedCourse {
   title: string;
   confidence: number;
-  skill_gaps: string[];
-  related_jobs: string[];
-  reasoning: string;
+  skill_gaps?: string[];
+  related_jobs?: string[];
+  reasoning?: string;
+  description?: string;
+  targeted_jobs?: string[];
+  key_topics?: string[];
+  improvement_type?: 'general' | 'enhanced_syllabus' | 'jd_based_requirement' | 'new_course';
+  rationale?: string;
   created_at: string;
   // New fields for enhanced syllabi
   enhanced_syllabus?: EnhancedSyllabus;
   original_course_id?: string;
-  improvement_type: 'new_course' | 'enhanced_syllabus';
 }
 
 export interface EnhancedSyllabus {
@@ -44,6 +57,7 @@ export interface AnalysisRequest {
   job_titles: string[];
   courses: string[];
   max_courses_per_job: number;
+  job_data?: JobTitle[];
 }
 
 export interface AnalysisResponse {
