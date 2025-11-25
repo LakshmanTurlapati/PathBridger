@@ -1,4 +1,4 @@
-# PathBridger V2.0 🎯
+# PathBridger V2.0
 
 <div align="center">
 
@@ -16,23 +16,23 @@
 
 ---
 
-## 🏛️ Academic Attribution
+## Academic Attribution
 
 **Institution:** [University of Texas at Dallas](https://www.utdallas.edu/)  
 **Supervising Professor:** [Dr. Shrikant Kannan](https://profiles.utdallas.edu/shrikant.kannan)  
 **Academic Program:** Independent Study - Semester III  
 **Project Type:** Educational Research & Development  
 
-**⚠️ Important Notice:**
+**Important Notice:**
 > This project is the intellectual property of the University of Texas at Dallas and is developed under academic supervision. It is intended for educational and research purposes only. Reproduction, distribution, or commercial use without explicit permission is prohibited.
 
 ---
 
-## 📊 Project Overview
+## Project Overview
 
 PathBridger V2.0 is an advanced Angular-based application that leverages artificial intelligence to analyze career paths and educational curricula. The system provides intelligent mapping between job requirements and academic courses, identifies skill gaps, and generates enhanced syllabi to better prepare students for their chosen career paths.
 
-### 🎯 Core Objectives
+### Core Objectives
 
 - **Bridge Academic-Industry Gap:** Align educational content with real-world job requirements
 - **AI-Driven Analysis:** Utilize xAI Grok API for intelligent career path analysis
@@ -42,7 +42,7 @@ PathBridger V2.0 is an advanced Angular-based application that leverages artific
 
 ---
 
-## 🏗️ System Architecture
+## System Architecture
 
 ```mermaid
 graph TB
@@ -92,7 +92,7 @@ graph TB
     style L fill:#0081CB,color:#fff
 ```
 
-### 🔄 AI Analysis Workflow
+### AI Analysis Workflow
 
 ```mermaid
 sequenceDiagram
@@ -119,27 +119,27 @@ sequenceDiagram
 
 ---
 
-## ✨ Key Features
+## Key Features
 
-### 🤖 AI-Powered Analysis
+### AI-Powered Analysis
 - **Educational Adequacy Thresholds:** AI determines optimal education-to-experience ratios for each job role
 - **Intelligent Course Mapping:** Advanced algorithms match courses to career requirements
 - **Gap Identification:** Comprehensive analysis of curriculum deficiencies
 - **Enhancement Suggestions:** AI-generated recommendations for course improvements
 
-### 📈 Data Processing & Visualization
+### Data Processing & Visualization
 - **Excel Integration:** Seamless import of course catalogs and syllabi
 - **Interactive Charts:** Dynamic visualizations of analysis results
 - **Confidence Scoring:** Quantitative assessment of mapping accuracy
 - **Comparative Analysis:** Side-by-side curriculum comparisons
 
-### 🎓 Educational Tools
+### Educational Tools
 - **Syllabus Enhancement:** AI-generated improved course content
 - **Industry Alignment:** Real-time job market data integration
 - **Skill Gap Analysis:** Detailed competency gap identification
 - **Course Recommendations:** Targeted suggestions for curriculum improvement
 
-### 💻 Technical Excellence
+### Technical Excellence
 - **Modern Angular Architecture:** Component-based design with TypeScript
 - **Material Design System:** Consistent, accessible user interface
 - **Reactive Programming:** RxJS-powered data flow management
@@ -147,7 +147,7 @@ sequenceDiagram
 
 ---
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 <table>
 <tr>
@@ -186,7 +186,7 @@ sequenceDiagram
 
 ---
 
-## 🚀 Quick Start Guide
+## Quick Start Guide
 
 ### Prerequisites
 - Node.js 18+ and npm
@@ -219,7 +219,7 @@ sequenceDiagram
    
    Navigate to `http://localhost:4200/`
 
-### 🔧 Environment Configuration
+### Environment Configuration
 
 Create environment configuration files:
 
@@ -234,7 +234,7 @@ export const environment = {
 
 ---
 
-## 📖 Usage Guide
+## Usage Guide
 
 ### 1. **Data Import**
 - Upload Excel files containing course information
@@ -263,7 +263,7 @@ export const environment = {
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 src/
@@ -294,7 +294,7 @@ src/
 
 ---
 
-## 🧪 Development & Testing
+## Development & Testing
 
 ### Running Tests
 ```bash
@@ -329,7 +329,7 @@ npm run prettier
 
 ---
 
-## 📊 API Integration
+## API Integration
 
 ### xAI Grok API Configuration
 
@@ -352,7 +352,7 @@ const grokConfig = {
 
 ---
 
-## 🔬 Research Applications
+## Research Applications
 
 ### Academic Use Cases
 
@@ -370,7 +370,7 @@ const grokConfig = {
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 As this is an academic project under university supervision, contributions are managed through the academic institution. For research collaboration inquiries, please contact:
 
@@ -380,7 +380,7 @@ University of Texas at Dallas
 
 ---
 
-## 📄 License & Copyright
+## License & Copyright
 
 **Copyright © 2024 University of Texas at Dallas**
 
@@ -390,7 +390,7 @@ For academic collaboration or research partnership inquiries, please contact the
 
 ---
 
-## 🔗 Related Resources
+## Related Resources
 
 - [Angular Documentation](https://angular.dev/)
 - [Material Design System](https://material.angular.io/)
@@ -402,7 +402,7 @@ For academic collaboration or research partnership inquiries, please contact the
 
 <div align="center">
 
-**Developed with 💻 at University of Texas at Dallas**
+**Developed at University of Texas at Dallas**
 
 *Advancing education through AI-powered analysis*
 

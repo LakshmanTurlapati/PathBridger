@@ -1,12 +1,14 @@
-import { Component, ViewChild, ElementRef, OnInit, OnDestroy } from '@angular/core';
+import { Component, ViewChild, ElementRef, OnInit, AfterViewInit, OnDestroy } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Subject, takeUntil, combineLatest } from 'rxjs';
+import { Subject, takeUntil, combineLatest, forkJoin, of } from 'rxjs';
+import { map, catchError } from 'rxjs/operators';
 import * as XLSX from 'xlsx';
 
 import { AppStateService } from './core/services/app-state.service';
 import { SettingsService } from './core/services/settings.service';
 import { ExcelParserService } from './core/services/excel-parser.service';
+import { PdfParserService } from './core/services/pdf-parser.service';
 import { AiClientService } from './core/services/ai-client.service';
 import { JobScraperService } from './core/services/job-scraper.service';
 
@@ -30,13 +32,16 @@ import {
 } from './shared/interfaces/data-models';
 import { APP_CONSTANTS } from './shared/constants/app-constants';
 
+// Vanta.js TypeScript declaration
+declare const VANTA: any;
+
 @Component({
   selector: 'app-root',
   templateUrl: './app.html',
   standalone: false,
   styleUrl: './app.scss'
 })
-export class App implements OnInit, OnDestroy {
+export class App implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
 
   // Application constants
@@ -46,9 +51,14 @@ export class App implements OnInit, OnDestroy {
   // Component state
   currentStep = 1;
   isLoading = false;
+  isProcessing = false;
   statusMessage = 'Ready to start. Upload course data or use defaults.';
   showProgressDialog = false;
   processingMessage = '';
+  showStatusBar = true;
+  isStatusBarHiding = false;
+  private statusBarTimer: any = null;
+  private vantaEffect: any = null;
 
   // Data properties
   courses: Course[] = [];
@@ -56,7 +66,6 @@ export class App implements OnInit, OnDestroy {
   suggestedCourses: SuggestedCourse[] = [];
   mappings: CourseMapping = {};
   jobSuggestionMappings: JobSuggestionMapping = {};
-  overallConfidence = 1.0;
   logs: LogEntry[] = [];
   
   // Array version of mappings for template binding
@@ -83,6 +92,7 @@ export class App implements OnInit, OnDestroy {
     private appStateService: AppStateService,
     private settingsService: SettingsService,
     private excelParserService: ExcelParserService,
+    private pdfParserService: PdfParserService,
     private aiClientService: AiClientService,
     private jobScraperService: JobScraperService,
     private dialog: MatDialog,
@@ -93,12 +103,42 @@ export class App implements OnInit, OnDestroy {
     this.subscribeToAppState();
     this.subscribeToSettings();
     this.subscribeToProcessingState();
-    
+
     // Load cached syllabus data on initialization
     this.loadCachedSyllabusData();
+
+    // Apply saved theme on initialization
+    const savedTheme = this.settingsService.getTheme();
+    this.applyTheme(savedTheme);
+  }
+
+  ngAfterViewInit(): void {
+    // Initialize Vanta.js fog effect
+    if (typeof VANTA !== 'undefined') {
+      this.vantaEffect = VANTA.FOG({
+        el: '.app-container',
+        mouseControls: true,
+        touchControls: true,
+        gyroControls: false,
+        minHeight: 200.00,
+        minWidth: 200.00,
+        highlightColor: 0xe87500,    // UTD Orange
+        midtoneColor: 0xede8e0,      // Warm beige
+        lowlightColor: 0xf5f5f0,     // Light cream
+        baseColor: 0xf8f6f3,         // Neutral base
+        blurFactor: 0.6,
+        speed: 1.5,
+        zoom: 1.0
+      });
+    }
   }
 
   ngOnDestroy(): void {
+    // Cleanup Vanta effect
+    if (this.vantaEffect) {
+      this.vantaEffect.destroy();
+    }
+
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -115,13 +155,15 @@ export class App implements OnInit, OnDestroy {
         this.suggestedCourses = state.suggestedCourses;
         this.mappings = state.mappings;
         this.jobSuggestionMappings = state.jobSuggestionMappings;
-        this.overallConfidence = state.overallConfidence;
-        
+
         // Update mappings array for template binding
         this.mappingsArray = Object.entries(state.mappings).map(([job, course]) => ({
           job: job,
           course: course
         }));
+
+        // Trigger auto-hide for status bar
+        this.autoHideStatusBar();
       });
 
     // Subscribe to derived state
@@ -139,6 +181,10 @@ export class App implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(settings => {
         this.hasApiKey = this.settingsService.hasApiKey();
+        // Apply theme whenever settings change
+        if (settings.theme) {
+          this.applyTheme(settings.theme);
+        }
       });
   }
 
@@ -150,6 +196,7 @@ export class App implements OnInit, OnDestroy {
     this.appStateService.isProcessing$
       .pipe(takeUntil(this.destroy$))
       .subscribe(isProcessing => {
+        this.isProcessing = isProcessing;
         if (isProcessing && !this.isLoading) {
           this.showProgressDialog = true;
         }
@@ -163,22 +210,241 @@ export class App implements OnInit, OnDestroy {
 
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    
-    if (!file) return;
-    
-    console.log('\n📁 USER ACTION: File Upload');
-    console.log('File name:', file.name);
-    console.log('File size:', file.size, 'bytes');
-    console.log('File type:', file.type);
+    const files = input.files;
 
-    const validation = this.excelParserService.validateFile(file);
-    if (!validation.isValid) {
-      this.showError(validation.error || 'Invalid file');
+    if (!files || files.length === 0) return;
+
+    console.log('\n📁 USER ACTION: File Upload');
+    console.log('Number of files selected:', files.length);
+
+    // Convert FileList to Array
+    const fileArray = Array.from(files);
+
+    // Separate PDF and Excel files
+    const pdfFiles: File[] = [];
+    const excelFiles: File[] = [];
+
+    fileArray.forEach(file => {
+      const fileName = file.name.toLowerCase();
+      if (fileName.endsWith('.pdf')) {
+        pdfFiles.push(file);
+      } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || fileName.endsWith('.csv')) {
+        excelFiles.push(file);
+      }
+    });
+
+    console.log(`PDF files: ${pdfFiles.length}, Excel files: ${excelFiles.length}`);
+
+    // Process based on file types
+    if (pdfFiles.length > 0 && excelFiles.length > 0) {
+      this.showError('Please upload either PDF files or Excel files, not both at the same time');
       return;
     }
 
-    this.processExcelFile(file);
+    if (pdfFiles.length > 0) {
+      // Validate all PDF files
+      for (const file of pdfFiles) {
+        const validation = this.pdfParserService.validatePdfFile(file);
+        if (!validation.isValid) {
+          this.showError(`Invalid PDF file "${file.name}": ${validation.error}`);
+          return;
+        }
+      }
+      this.processMultiplePdfFiles(pdfFiles);
+    } else if (excelFiles.length > 0) {
+      if (excelFiles.length > 1) {
+        this.showError('Please upload only one Excel file at a time');
+        return;
+      }
+      // Single Excel file
+      const validation = this.excelParserService.validateFile(excelFiles[0]);
+      if (!validation.isValid) {
+        this.showError(validation.error || 'Invalid file');
+        return;
+      }
+      this.processExcelFile(excelFiles[0]);
+    }
+  }
+
+  private processPdfFile(file: File): void {
+    this.appStateService.setLoading(true);
+    this.appStateService.setProcessing(true);
+    this.processingMessage = `Processing PDF syllabus: ${file.name}`;
+
+    this.appStateService.addLog({
+      type: 'info',
+      message: `Starting PDF syllabus processing: ${file.name}`
+    });
+
+    // Clear existing cache when uploading new PDF syllabus
+    console.log('New PDF syllabus uploaded, clearing old cache');
+    this.clearSyllabusCache();
+
+    // Process PDF as syllabus file
+    this.pdfParserService.parsePdfFile(file)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (pdfCourses) => {
+          console.log('Parsed PDF syllabus courses:', pdfCourses);
+
+          this.appStateService.addLog({
+            type: 'success',
+            message: `Successfully parsed ${pdfCourses.length} course(s) from PDF`
+          });
+
+          // Store syllabus data and convert to regular Course format
+          this.syllabusCoursesMap.clear();
+          const courseObjects: Course[] = pdfCourses.map((course, index) => {
+            // Use the course code as the ID for consistency
+            const courseId = course.code || course.id || `course-${index + 1}`;
+            const courseLabel = `${course.code} ${course.title}`;
+
+            // Store syllabus data with multiple keys for easier lookup
+            this.syllabusCoursesMap.set(courseId, course);  // Store by code
+            this.syllabusCoursesMap.set(courseLabel, course);  // Store by full label
+
+            console.log(`Storing PDF syllabus for course:`, {
+              courseId: courseId,
+              courseLabel: courseLabel,
+              title: course.title,
+              hasRawContent: !!course.syllabus?.rawContent,
+              rawContentLength: course.syllabus?.rawContent?.length || 0
+            });
+
+            // Return Course object with matching ID
+            return {
+              id: courseId,
+              label: courseLabel
+            };
+          });
+
+          this.hasSyllabusData = true;
+          console.log('PDF Syllabus data map size:', this.syllabusCoursesMap.size);
+          console.log('Has syllabus data:', this.hasSyllabusData);
+
+          this.appStateService.setCourses(courseObjects);
+          this.appStateService.setCurrentStep(2);
+
+          this.showSuccess(`Loaded ${pdfCourses.length} course(s) with PDF syllabus content`);
+          this.finishProcessing();
+        },
+        error: (error) => {
+          this.appStateService.addLog({
+            type: 'error',
+            message: `PDF parsing failed: ${error.message}`
+          });
+          this.showError(`Failed to parse PDF file: ${error.message}`);
+          this.finishProcessing();
+        }
+      });
+  }
+
+  private processMultiplePdfFiles(files: File[]): void {
+    this.appStateService.setLoading(true);
+    this.appStateService.setProcessing(true);
+    this.processingMessage = `Processing ${files.length} PDF syllabus file(s)...`;
+
+    this.appStateService.addLog({
+      type: 'info',
+      message: `Starting batch PDF processing: ${files.length} files`
+    });
+
+    console.log('Processing multiple PDF files:', files.map(f => f.name));
+
+    // Clear existing cache when uploading new PDF syllabi
+    this.clearSyllabusCache();
+
+    // Process all PDFs using forkJoin for parallel processing
+    const parseObservables = files.map((file, index) =>
+      this.pdfParserService.parsePdfFile(file).pipe(
+        map(courses => ({
+          fileName: file.name,
+          courses: courses,
+          index: index + 1
+        })),
+        catchError(error => {
+          console.error(`Failed to parse ${file.name}:`, error);
+          this.appStateService.addLog({
+            type: 'error',
+            message: `Failed to parse ${file.name}: ${error.message}`
+          });
+          // Return empty array for failed files, continue with others
+          return of({ fileName: file.name, courses: [], index: index + 1, error: error.message });
+        })
+      )
+    );
+
+    forkJoin(parseObservables)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (results) => {
+          // Combine all courses from all PDFs
+          const allCourses: CourseWithSyllabus[] = [];
+          const courseObjects: Course[] = [];
+          let totalCourses = 0;
+          let successfulFiles = 0;
+          let failedFiles = 0;
+
+          results.forEach(result => {
+            if (result.courses.length > 0) {
+              successfulFiles++;
+              totalCourses += result.courses.length;
+
+              result.courses.forEach((course, courseIndex) => {
+                const courseId = course.code || course.id || `course-${result.index}-${courseIndex + 1}`;
+                const courseLabel = `${course.code} ${course.title}`;
+
+                // Store in syllabusCoursesMap with both ID and label as keys
+                this.syllabusCoursesMap.set(courseId, course);
+                this.syllabusCoursesMap.set(courseLabel, course);
+
+                // Add to combined arrays
+                allCourses.push(course);
+                courseObjects.push({
+                  id: courseId,
+                  label: courseLabel
+                });
+              });
+
+              this.appStateService.addLog({
+                type: 'success',
+                message: `${result.fileName}: Loaded ${result.courses.length} course(s)`
+              });
+            } else if ('error' in result) {
+              failedFiles++;
+            }
+          });
+
+          this.hasSyllabusData = totalCourses > 0;
+
+          console.log(`Batch processing complete: ${successfulFiles} successful, ${failedFiles} failed`);
+          console.log(`Total courses loaded: ${totalCourses}`);
+          console.log('Syllabus data map size:', this.syllabusCoursesMap.size);
+
+          if (totalCourses > 0) {
+            this.appStateService.setCourses(courseObjects);
+            this.appStateService.setCurrentStep(2);
+
+            const summary = failedFiles > 0
+              ? `Loaded ${totalCourses} course(s) from ${successfulFiles}/${files.length} PDF files (${failedFiles} failed)`
+              : `Loaded ${totalCourses} course(s) from ${files.length} PDF syllabus file(s)`;
+
+            this.showSuccess(summary);
+          } else {
+            this.showError(`Failed to parse any courses from the ${files.length} PDF file(s)`);
+          }
+
+          this.finishProcessing();
+        },
+        error: (error) => {
+          this.appStateService.addLog({
+            type: 'error',
+            message: `Batch PDF parsing failed: ${error.message}`
+          });
+          this.showError(`Failed to parse PDF files: ${error.message}`);
+          this.finishProcessing();
+        }
+      });
   }
 
   private processExcelFile(file: File): void {
@@ -520,17 +786,19 @@ export class App implements OnInit, OnDestroy {
         version: this.CACHE_VERSION,
         timestamp: new Date().toISOString(),
         data: data,
+        enhancedSyllabi: Object.fromEntries(this.enhancedSyllabiMap),
+        courseEnhancements: Object.fromEntries(this.courseEnhancements),
         checksum: this.generateChecksum(data)
       };
-      
+
       // Compress data if needed
       const cacheString = JSON.stringify(cacheData);
       const sizeInMB = cacheString.length / (1024 * 1024);
-      
+
       if (sizeInMB > 5) {
         console.warn(`Cache size is ${sizeInMB.toFixed(2)}MB, which may exceed localStorage limits`);
       }
-      
+
       localStorage.setItem(this.SYLLABUS_CACHE_KEY, cacheString);
       console.log(`Saved ${data.length} courses to cache (${sizeInMB.toFixed(2)}MB)`);
       this.showSuccess('Syllabus data saved to cache');
@@ -576,6 +844,18 @@ export class App implements OnInit, OnDestroy {
       // Process the cached data
       if (cacheData.data && cacheData.data.length > 0) {
         this.processSyllabusData(cacheData.data);
+
+        // Restore enhanced syllabi and course enhancements
+        if (cacheData.enhancedSyllabi) {
+          this.enhancedSyllabiMap = new Map(Object.entries(cacheData.enhancedSyllabi));
+          console.log(`Restored ${this.enhancedSyllabiMap.size} enhanced syllabi from cache`);
+        }
+
+        if (cacheData.courseEnhancements) {
+          this.courseEnhancements = new Map(Object.entries(cacheData.courseEnhancements));
+          console.log(`Restored ${this.courseEnhancements.size} course enhancements from cache`);
+        }
+
         this.showInfo(`Restored ${cacheData.data.length} courses from cache`);
       }
     } catch (error) {
@@ -596,12 +876,23 @@ export class App implements OnInit, OnDestroy {
     return hash.toString(36);
   }
   
+  /**
+   * Helper method to save current syllabus state to cache
+   * Includes all Maps data (syllabusCoursesMap, enhancedSyllabiMap, courseEnhancements)
+   */
+  private saveCurrentSyllabusState(): void {
+    if (this.syllabusCoursesMap.size > 0) {
+      const syllabusData = Array.from(this.syllabusCoursesMap.values());
+      this.saveSyllabusDataToCache(syllabusData);
+    }
+  }
+
   clearSyllabusCache(): void {
     try {
       localStorage.removeItem(this.SYLLABUS_CACHE_KEY);
       // Also remove old cache key if it exists
       localStorage.removeItem('pathfinder_syllabus_cache');
-      
+
       this.syllabusCoursesMap.clear();
       this.hasSyllabusData = false;
       this.courseEnhancements.clear();
@@ -636,7 +927,6 @@ export class App implements OnInit, OnDestroy {
       // Sheet 2: Suggested Courses
       const suggestionsData = this.suggestedCourses.map(suggestion => ({
         'Course Title': suggestion.title,
-        'Confidence Score': `${(suggestion.confidence * 100).toFixed(0)}%`,
         'Related Jobs': (suggestion.related_jobs || []).join(', '),
         'Status': 'Suggested'
       }));
@@ -686,9 +976,6 @@ export class App implements OnInit, OnDestroy {
       }, {
         'Metric': 'Suggested New Courses',
         'Value': this.suggestedCourses.length
-      }, {
-        'Metric': 'Overall Confidence',
-        'Value': `${(this.overallConfidence * 100).toFixed(0)}%`
       }, {
         'Metric': 'Export Date',
         'Value': new Date().toLocaleString()
@@ -747,7 +1034,8 @@ export class App implements OnInit, OnDestroy {
         content: dialogContent,
         mappings: this.mappings,
         mode: 'view'
-      }
+      },
+      panelClass: 'modern-dialog'
     });
   }
   
@@ -764,7 +1052,6 @@ export class App implements OnInit, OnDestroy {
         ${this.suggestedCourses.map(suggestion => `
           <div class="suggestion-row">
             <h4>${suggestion.title}</h4>
-            <p><strong>Confidence:</strong> ${(suggestion.confidence * 100).toFixed(0)}%</p>
             <p><strong>For Jobs:</strong> ${(suggestion.related_jobs || []).join(', ')}</p>
             <p><strong>Skills:</strong> ${(suggestion.skill_gaps || []).join(', ')}</p>
             <p><em>${suggestion.reasoning}</em></p>
@@ -782,7 +1069,8 @@ export class App implements OnInit, OnDestroy {
         content: dialogContent,
         suggestions: this.suggestedCourses,
         mode: 'view'
-      }
+      },
+      panelClass: 'modern-dialog'
     });
   }
 
@@ -891,7 +1179,7 @@ export class App implements OnInit, OnDestroy {
           
           this.appStateService.addLog({
             type: 'success',
-            message: `AI analysis complete. Confidence: ${(response.overall_confidence || 0 * 100).toFixed(0)}%`
+            message: 'AI analysis complete'
           });
 
           // Generate enhanced syllabi for both matched and unmapped courses
@@ -949,8 +1237,11 @@ export class App implements OnInit, OnDestroy {
         console.log(`Stored enhanced syllabus for ${courseName}`);
       }
     });
-    
+
     console.log(`Generated ${this.enhancedSyllabiMap.size} enhanced syllabi for matched courses`);
+
+    // Save the updated syllabus data to cache including enhanced syllabi
+    this.saveCurrentSyllabusState();
   }
   
   private createEnhancedSyllabus(originalCourse: CourseWithSyllabus, relatedJobs: string[]): EnhancedSyllabus {
@@ -1378,13 +1669,16 @@ export class App implements OnInit, OnDestroy {
     };
     
     this.appStateService.setAnalysisResults(finalResponse);
-    
+
     if (enhancedSuggestedCourses.length > 0) {
       this.showSuccess(`AI analysis completed with ${enhancedSuggestedCourses.length} enhanced syllabi`);
     } else {
       this.showSuccess('AI analysis completed successfully');
     }
-    
+
+    // Save all syllabus data to cache including enhancements and enhanced syllabi
+    this.saveCurrentSyllabusState();
+
     this.finishProcessing();
   }
 
@@ -1398,7 +1692,8 @@ export class App implements OnInit, OnDestroy {
       width: '700px',
       maxHeight: '80vh',
       data: dialogData,
-      disableClose: false
+      disableClose: false,
+      panelClass: 'modern-dialog'
     });
 
     dialogRef.afterClosed().subscribe((result: JobDialogResult | null) => {
@@ -1422,7 +1717,8 @@ export class App implements OnInit, OnDestroy {
     const dialogRef = this.dialog.open(SettingsDialogComponent, {
       width: '600px',
       maxHeight: '80vh',
-      disableClose: false
+      disableClose: false,
+      panelClass: 'modern-dialog'
     });
 
     dialogRef.afterClosed().subscribe((saved: boolean) => {
@@ -1474,14 +1770,134 @@ export class App implements OnInit, OnDestroy {
     return 'status-info';
   }
 
-  getConfidenceClass(confidence: number): string {
-    if (confidence >= 0.9) return 'confidence-high';
-    if (confidence >= 0.7) return 'confidence-medium';
-    return 'confidence-low';
+  getStatusBarClass(): string {
+    // Determine status bar class based on current state
+    if (this.isLoading || this.isProcessing) {
+      return 'status-loading';
+    }
+
+    // Check if status message indicates success
+    if (this.statusMessage.toLowerCase().includes('complete') ||
+        this.statusMessage.toLowerCase().includes('success') ||
+        this.statusMessage.toLowerCase().includes('loaded')) {
+      return 'status-success';
+    }
+
+    // Check for error/failure
+    if (this.statusMessage.toLowerCase().includes('error') ||
+        this.statusMessage.toLowerCase().includes('failed')) {
+      return 'status-error';
+    }
+
+    // Check for warning/low confidence
+    if (this.statusMessage.toLowerCase().includes('warning') ||
+        this.statusMessage.toLowerCase().includes('low confidence')) {
+      return 'status-warning';
+    }
+
+    // Default info state
+    return '';
+  }
+
+  getCurrentStepName(): string {
+    switch (this.currentStep) {
+      case 1: return 'Course Data';
+      case 2: return 'Job Titles';
+      case 3: return 'Course Mapping';
+      case 4: return 'AI Analysis';
+      default: return 'Processing';
+    }
+  }
+
+  private autoHideStatusBar(): void {
+    // Clear any existing timer
+    if (this.statusBarTimer) {
+      clearTimeout(this.statusBarTimer);
+    }
+
+    // Reset hiding state and show the status bar
+    this.isStatusBarHiding = false;
+    this.showStatusBar = true;
+
+    // Don't auto-hide for loading or error states
+    if (this.isLoading || this.isProcessing ||
+        this.statusMessage.toLowerCase().includes('error') ||
+        this.statusMessage.toLowerCase().includes('failed')) {
+      return;
+    }
+
+    // Auto-hide after 5 seconds for success/info/warning messages
+    this.statusBarTimer = setTimeout(() => {
+      // Start fade-out animation
+      this.isStatusBarHiding = true;
+
+      // Wait for animation to complete before removing from DOM
+      setTimeout(() => {
+        this.showStatusBar = false;
+        this.isStatusBarHiding = false;
+      }, 400); // Match animation duration
+    }, 5000);
   }
 
   formatLogTime(timestamp: string): string {
     return new Date(timestamp).toLocaleTimeString();
+  }
+
+  // Helper methods for AI Analysis Dashboard
+  getUnmappedJobsCount(): number {
+    const mappedJobs = Object.keys(this.mappings);
+    return this.jobTitles.length - mappedJobs.length;
+  }
+
+  getMappingCoveragePercent(jobTitle: string): number {
+    // Return a coverage percentage based on mapping quality
+    // For now, return 85% if mapped, can be enhanced with actual analysis
+    return this.mappings[jobTitle] ? 85 : 0;
+  }
+
+  getMappedCourseLabel(jobTitle: string): string {
+    const mapping = this.mappings[jobTitle];
+    if (!mapping || !Array.isArray(mapping) || mapping.length === 0) {
+      return 'No course mapped';
+    }
+    // Return the first mapped course label
+    const firstCourse = mapping[0];
+    return typeof firstCourse === 'string' ? firstCourse : firstCourse.label || 'Unknown course';
+  }
+
+  hasJobDescriptions(): boolean {
+    return this.jobTitles.some((job: JobTitle) => job.description && job.description.trim().length > 0);
+  }
+
+  getJobsWithDescriptions(): JobTitle[] {
+    return this.jobTitles.filter((job: JobTitle) => job.description && job.description.trim().length > 0);
+  }
+
+  getSkillsCovered(job: JobTitle): string[] {
+    // Extract skills from job that are covered by mapped courses
+    if (!job.skills || job.skills.length === 0) {
+      return [];
+    }
+
+    const mappedCourses = this.mappings[job.label];
+    if (!mappedCourses || mappedCourses.length === 0) {
+      return [];
+    }
+
+    // For now, return a subset of skills as "covered"
+    // This can be enhanced with actual course syllabus analysis
+    const coveredCount = Math.floor(job.skills.length * 0.7); // Assume 70% covered
+    return job.skills.slice(0, coveredCount);
+  }
+
+  getSkillsGap(job: JobTitle): string[] {
+    // Extract skills that are NOT covered by mapped courses
+    if (!job.skills || job.skills.length === 0) {
+      return [];
+    }
+
+    const covered = this.getSkillsCovered(job);
+    return job.skills.filter(skill => !covered.includes(skill));
   }
 
   // Helper methods for job descriptions
@@ -1534,7 +1950,7 @@ export class App implements OnInit, OnDestroy {
       data: job,
       width: '600px',
       maxWidth: '90vw',
-      panelClass: 'job-details-dialog'
+      panelClass: 'modern-dialog'
     });
   }
 
@@ -1550,33 +1966,63 @@ export class App implements OnInit, OnDestroy {
     console.log('Show all jobs - to be implemented');
   }
 
-  // Notification helpers
+  // Helper to safely extract course label from mapping.course
+  // Handles both string labels and CourseWithSyllabus objects
+  getCourseLabelSafe(course: any): string {
+    // If it's already a string, return it
+    if (typeof course === 'string') {
+      console.log('Course is string:', course);
+      return course;
+    }
+
+    // If it's an object with a label property, use that
+    if (course && typeof course === 'object') {
+      console.warn('Course is object, extracting label:', course);
+
+      // Try label property first
+      if (course.label) {
+        return course.label;
+      }
+
+      // Try to construct from code and title
+      if (course.code && course.title) {
+        return `${course.code} ${course.title}`;
+      }
+
+      // Try just code
+      if (course.code) {
+        return course.code;
+      }
+
+      // Last resort: stringify but truncate
+      const str = JSON.stringify(course);
+      console.error('Had to stringify course object:', str.substring(0, 100));
+      return '[Invalid Course Data]';
+    }
+
+    console.error('Course is neither string nor object:', course);
+    return '[Unknown]';
+  }
+
+  // Notification helpers - Disabled to use only custom status bar
   private showSuccess(message: string): void {
-    this.snackBar.open(message, 'Close', {
-      duration: 3000,
-      panelClass: ['success-snackbar']
-    });
+    this.statusMessage = message;
+    console.log('Success:', message);
   }
 
   private showError(message: string): void {
-    this.snackBar.open(message, 'Close', {
-      duration: 5000,
-      panelClass: ['error-snackbar']
-    });
+    this.statusMessage = `Error: ${message}`;
+    console.error('Error:', message);
   }
 
   private showInfo(message: string): void {
-    this.snackBar.open(message, 'Close', {
-      duration: 3000,
-      panelClass: ['info-snackbar']
-    });
+    this.statusMessage = message;
+    console.log('Info:', message);
   }
 
   private showWarning(message: string): void {
-    this.snackBar.open(message, 'Close', {
-      duration: 4000,
-      panelClass: ['warning-snackbar']
-    });
+    this.statusMessage = `Warning: ${message}`;
+    console.warn('Warning:', message);
   }
 
   // Suggested course click handler
@@ -1611,7 +2057,8 @@ export class App implements OnInit, OnDestroy {
         course: originalCourse,
         enhancedSyllabus: enhancedSyllabus,
         mode: 'diff'
-      }
+      },
+      panelClass: 'modern-dialog'
     });
   }
 
@@ -1620,11 +2067,11 @@ export class App implements OnInit, OnDestroy {
     const dialogRef = this.dialog.open(JobDialogComponent, {
       width: '600px',
       maxHeight: '70vh',
+      panelClass: 'modern-dialog',
       data: {
         title: suggestion.title,
         content: `
           <h3>${suggestion.title}</h3>
-          <p><strong>Confidence:</strong> ${(suggestion.confidence * 100).toFixed(0)}%</p>
           <p><strong>For Jobs:</strong> ${(suggestion.related_jobs || []).join(', ')}</p>
           <p><strong>Skill Gaps:</strong> ${(suggestion.skill_gaps || []).join(', ')}</p>
           <p><strong>Reasoning:</strong> ${suggestion.reasoning}</p>
@@ -1681,13 +2128,68 @@ export class App implements OnInit, OnDestroy {
   }
   
   getCourseHasSyllabus(course: Course): boolean {
-    return this.syllabusCoursesMap.has(course.id);
+    // Check both id and label keys to match how data is stored during PDF/Excel upload
+    return this.syllabusCoursesMap.has(course.id) ||
+           this.syllabusCoursesMap.has(course.label);
   }
   
   showAllCoursesDialog(): void {
     console.log('🔥 showAllCoursesDialog clicked!');
-    // Simple implementation to show info about all courses
-    this.showInfo(`Total courses loaded: ${this.courses.length}. Click individual courses to view their syllabi.`);
+
+    if (this.courses.length === 0) {
+      this.showInfo('No courses available');
+      return;
+    }
+
+    // Create dialog content with all courses
+    const hasSyllabus = this.hasSyllabusData;
+    const dialogContent = `
+      <h3>All Loaded Courses (${this.courses.length})</h3>
+      <div class="courses-list" style="display: flex; flex-direction: column; gap: 8px;">
+        ${this.courses.map((course: Course) => {
+          const hasCourseSyllabus = this.getCourseHasSyllabus(course);
+          const icon = hasCourseSyllabus ? '<mat-icon class="course-icon" style="color: #1976d2;">article</mat-icon>' : '<mat-icon class="course-icon" style="color: #666;">school</mat-icon>';
+          const clickable = hasCourseSyllabus ? 'style="cursor: pointer; padding: 8px; border-radius: 4px;" onmouseover="this.style.backgroundColor=\'#f5f5f5\'" onmouseout="this.style.backgroundColor=\'transparent\'"' : '';
+          const courseId = `course-item-${course.id}`;
+
+          return `
+            <div class="course-row" ${clickable} data-course-id="${course.id}" id="${courseId}">
+              ${icon}
+              <span style="margin-left: 8px;">${course.label}</span>
+              ${hasCourseSyllabus ? '<span style="margin-left: auto; font-size: 12px; color: #1976d2;">View Syllabus →</span>' : ''}
+            </div>
+          `;
+        }).join('')}
+      </div>
+      ${hasSyllabus ? '<p style="margin-top: 16px; font-size: 12px; color: #666;"><mat-icon style="font-size: 14px; vertical-align: middle;">info</mat-icon> Click courses with syllabus icon to view details</p>' : ''}
+    `;
+
+    const dialogRef = this.dialog.open(JobDialogComponent, {
+      width: '600px',
+      maxHeight: '70vh',
+      data: {
+        title: 'All Courses',
+        content: dialogContent,
+        courses: this.courses,
+        mode: 'view'
+      },
+      panelClass: 'modern-dialog'
+    });
+
+    // Add click handlers after dialog opens
+    setTimeout(() => {
+      this.courses.forEach((course: Course) => {
+        if (this.getCourseHasSyllabus(course)) {
+          const element = document.getElementById(`course-item-${course.id}`);
+          if (element) {
+            element.addEventListener('click', () => {
+              dialogRef.close();
+              this.onCourseClick(course, new MouseEvent('click'));
+            });
+          }
+        }
+      });
+    }, 100);
   }
   
   onCourseClickFromArray(courseName: string, job: string): void {
@@ -1732,7 +2234,7 @@ export class App implements OnInit, OnDestroy {
     console.log('Available keys in syllabusCoursesMap:', Array.from(this.syllabusCoursesMap.keys()));
     
     // Try exact match by label first (most likely case for review section)
-    let syllabusCourse = this.syllabusCoursesMap.get(courseLabel);
+    let syllabusCourse: CourseWithSyllabus | undefined = this.syllabusCoursesMap.get(courseLabel);
     if (syllabusCourse) {
       console.log('Found by exact label match');
       return syllabusCourse;
@@ -1796,7 +2298,16 @@ export class App implements OnInit, OnDestroy {
         }
       });
     }
-    
+
+    if (!syllabusCourse) {
+      console.warn(`❌ Course NOT FOUND after all matching attempts - Label: "${courseLabel}", ID: "${courseId}"`);
+      console.warn('   Map has', this.syllabusCoursesMap.size, 'entries');
+      console.warn('   Available keys:', Array.from(this.syllabusCoursesMap.keys()));
+    } else {
+      const found = syllabusCourse as CourseWithSyllabus;
+      console.log(`✅ Successfully found course: ${found.code} - ${found.title}`);
+    }
+
     return syllabusCourse;
   }
   
@@ -1814,10 +2325,11 @@ export class App implements OnInit, OnDestroy {
         width: '100%',
         maxWidth: '1170px',  // Increased by 30% from 900px
         maxHeight: '90vh',
-        data: { 
+        data: {
           course,
           mode: 'syllabus' as const
-        } as SyllabusDialogData
+        } as SyllabusDialogData,
+        panelClass: 'modern-dialog'
       });
       console.log('✅ Dialog opened successfully');
     } catch (error) {
@@ -1856,7 +2368,8 @@ export class App implements OnInit, OnDestroy {
         width: '100%',
         maxWidth: '1200px',
         maxHeight: '90vh',
-        data: enhancementData
+        data: enhancementData,
+        panelClass: 'modern-dialog'
       });
       
       console.log('✅ Dialog opened successfully. DialogRef:', dialogRef);

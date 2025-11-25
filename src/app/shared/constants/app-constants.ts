@@ -63,7 +63,7 @@ export const APP_CONSTANTS = {
     REQUIRED_COLUMNS: ['title'],
     OPTIONAL_COLUMNS: ['code', 'description', 'credit_hours'],
     MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
-    SUPPORTED_EXTENSIONS: ['.xlsx', '.xls', '.csv']
+    SUPPORTED_EXTENSIONS: ['.xlsx', '.xls', '.csv', '.pdf']
   },
 
   // UI Configuration

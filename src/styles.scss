@@ -6,11 +6,51 @@
 // custom components at https://material.angular.dev/guide/theming
 @use '@angular/material' as mat;
 
+// Custom UTD Orange Palette (Pantone 158: #e87500)
+$utd-orange-palette: (
+  0: #000000,
+  10: #3a1000,
+  20: #5f1c00,
+  25: #6e2300,
+  30: #7e2b00,
+  35: #8d3300,
+  40: #9d3c00,
+  50: #bf5700,
+  60: #e87500,
+  70: #ff9933,
+  80: #ffad5c,
+  90: #ffd5a8,
+  95: #ffebd9,
+  98: #fff8f4,
+  99: #fffbff,
+  100: #ffffff,
+);
+
+// Custom UTD Green Palette (Pantone 3435: #154734)
+$utd-green-palette: (
+  0: #000000,
+  10: #001f13,
+  20: #003421,
+  25: #00412a,
+  30: #0d3322,
+  35: #154734,
+  40: #1e6347,
+  50: #267553,
+  60: #419a73,
+  70: #5eb58d,
+  80: #7cd1a8,
+  90: #9bedc3,
+  95: #c8f7de,
+  98: #e8fff2,
+  99: #f4fff8,
+  100: #ffffff,
+);
+
 html {
   @include mat.theme((
     color: (
-      primary: mat.$azure-palette,
-      tertiary: mat.$blue-palette,
+      primary: $utd-orange-palette,
+      tertiary: $utd-green-palette,
     ),
     typography: Roboto,
     density: 0,
@@ -37,3 +77,114 @@ body {
 
 html, body { height: 100%; }
 body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+
+// ===== THEME STYLES =====
+body.light-theme {
+  background-color: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  color-scheme: light;
+}
+
+body.dark-theme {
+  background-color: #121212;
+  color: rgba(255, 255, 255, 0.87);
+  color-scheme: dark;
+
+  // Override Material Design system variables for dark theme
+  --mat-sys-surface: #121212;
+  --mat-sys-surface-variant: #1e1e1e;
+  --mat-sys-surface-container: #2c2c2c;
+  --mat-sys-on-surface: rgba(255, 255, 255, 0.87);
+  --mat-sys-on-surface-variant: rgba(255, 255, 255, 0.6);
+
+  // Card and dialog backgrounds
+  mat-card,
+  .mat-mdc-card {
+    background-color: #1e1e1e;
+  }
+
+  // Dialog shadow for dark theme - stronger for better contrast
+  .modern-dialog .mat-mdc-dialog-surface {
+    background: #1e1e1e !important;
+    box-shadow:
+      0px 11px 15px -7px rgba(0, 0, 0, 0.5),
+      0px 24px 38px 3px rgba(0, 0, 0, 0.4),
+      0px 9px 46px 8px rgba(0, 0, 0, 0.3);
+  }
+
+  // Input fields
+  .mat-mdc-form-field {
+    --mdc-outlined-text-field-container-color: transparent;
+    --mdc-outlined-text-field-label-text-color: rgba(255, 255, 255, 0.6);
+    --mdc-outlined-text-field-input-text-color: rgba(255, 255, 255, 0.87);
+  }
+
+  // Buttons
+  .mat-mdc-button, .mat-mdc-raised-button, .mat-mdc-stroked-button {
+    --mdc-text-button-label-text-color: rgba(255, 255, 255, 0.87);
+  }
+
+  // Chips
+  .mat-mdc-chip {
+    background-color: #2c2c2c;
+    color: rgba(255, 255, 255, 0.87);
+  }
+
+  // Steppers
+  .mat-stepper-horizontal, .mat-stepper-vertical {
+    background-color: transparent;
+  }
+
+  // Icons
+  mat-icon {
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  // Status bar
+  .status-bar {
+    background-color: #2c2c2c;
+    border-top-color: #3c3c3c;
+  }
+}
+
+// ===== GLOBAL DIALOG STYLING =====
+// These styles MUST be global because dialogs are rendered in CDK overlay containers
+// at the document root level, outside of component view encapsulation boundaries.
+// Component-scoped styles cannot reach these elements.
+
+// Make dialog backdrops transparent
+.cdk-overlay-backdrop {
+  background-color: transparent !important;
+}
+
+.modern-dialog .mat-mdc-dialog-container {
+  padding: 0;
+}
+
+// Target the actual visible surface element
+.modern-dialog .mat-mdc-dialog-surface {
+  background: #ffffff !important;
+  border-radius: 24px;
+  padding: 0;
+  overflow: hidden;
+  // Material Design elevation 24 - strong shadow for visual separation
+  box-shadow:
+    0px 11px 15px -7px rgba(0, 0, 0, 0.2),
+    0px 24px 38px 3px rgba(0, 0, 0, 0.14),
+    0px 9px 46px 8px rgba(0, 0, 0, 0.12);
+}
+
+.modern-dialog .mat-mdc-dialog-title {
+  padding: 24px 24px 16px 24px;
+  margin: 0;
+}
+
+.modern-dialog .mat-mdc-dialog-content {
+  padding: 0 24px 24px 24px;
+  max-height: 70vh;
+}
+
+.modern-dialog .mat-mdc-dialog-actions {
+  padding: 16px 24px 24px 24px;
+  margin: 0;
+}

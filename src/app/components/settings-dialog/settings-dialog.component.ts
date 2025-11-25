@@ -1,9 +1,12 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { MatDialogRef } from '@angular/material/dialog';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { SettingsService } from '../../core/services/settings.service';
 import { AiClientService } from '../../core/services/ai-client.service';
+import { AppStateService } from '../../core/services/app-state.service';
+import { ExcelParserService } from '../../core/services/excel-parser.service';
+import { JobScraperService } from '../../core/services/job-scraper.service';
 import { AppSettings } from '../../shared/interfaces/data-models';
 
 @Component({
@@ -23,7 +26,11 @@ export class SettingsDialogComponent implements OnInit {
     private dialogRef: MatDialogRef<SettingsDialogComponent>,
     private settingsService: SettingsService,
     private aiClientService: AiClientService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private dialog: MatDialog,
+    private appStateService: AppStateService,
+    private excelParserService: ExcelParserService,
+    private jobScraperService: JobScraperService
   ) {}
 
   ngOnInit(): void {
@@ -38,7 +45,6 @@ export class SettingsDialogComponent implements OnInit {
       grokApiKey: [currentApiKey, [
         Validators.pattern(/^xai-[0-9A-Za-z-_]{40,}$/)
       ]],
-      theme: [this.currentSettings.theme || 'light'],
       autoSaveProgress: [this.currentSettings.autoSaveProgress ?? true]
     });
   }
@@ -92,7 +98,6 @@ export class SettingsDialogComponent implements OnInit {
 
     // Save other settings
     this.settingsService.updateSettings({
-      theme: formValues.theme,
       autoSaveProgress: formValues.autoSaveProgress
     }).subscribe({
       next: () => {
@@ -110,6 +115,42 @@ export class SettingsDialogComponent implements OnInit {
     this.settingsService.setGrokApiKey('').subscribe(() => {
       this.showInfo('API key cleared');
     });
+  }
+
+  clearAppCache(): void {
+    const confirmDialog = confirm(
+      'This will clear all cached data including:\n\n' +
+      '• Syllabus content\n' +
+      '• Course data\n' +
+      '• Job titles\n' +
+      '• Analysis results\n\n' +
+      'Your API key and preferences will be preserved.\n\n' +
+      'Are you sure you want to continue?'
+    );
+
+    if (!confirmDialog) {
+      return;
+    }
+
+    try {
+      // Clear syllabus cache
+      localStorage.removeItem('pathfinder_syllabus_data_v2');
+      localStorage.removeItem('pathfinder_syllabus_cache');
+
+      // Clear Excel data cache
+      this.excelParserService.clearStoredCourses();
+
+      // Clear job titles cache
+      this.jobScraperService.clearCache();
+
+      // Reset app state
+      this.appStateService.resetState();
+
+      this.showSuccess('Cache cleared successfully. Please reload the page to start fresh.');
+    } catch (error) {
+      console.error('Failed to clear cache:', error);
+      this.showError('Failed to clear cache. Please try again.');
+    }
   }
 
   cancel(): void {

@@ -24,16 +24,16 @@
           <ng-template matStepLabel>Course Data</ng-template>
           <div class="step-content">
             <h3>Upload Course Data</h3>
-            <p class="step-description">Upload an Excel file with course information or use default courses.</p>
+            <p class="step-description">Upload course data (Excel or PDF syllabus) or use default courses.</p>
             
             <div class="action-buttons">
-              <button 
-                mat-raised-button 
-                color="primary" 
+              <button
+                mat-stroked-button
+                color="primary"
                 (click)="triggerFileUpload()"
                 [disabled]="isLoading">
                 <mat-icon>upload_file</mat-icon>
-                Upload Excel File
+                Upload Files (Excel/PDF)
               </button>
               
               <button 
@@ -63,12 +63,19 @@
               </button>
             </div>
 
-            <input 
-              #fileInput 
-              type="file" 
-              accept=".xlsx,.xls,.csv" 
+            <input
+              #fileInput
+              type="file"
+              accept=".xlsx,.xls,.csv,.pdf"
+              multiple
               (change)="onFileSelected($event)"
               style="display: none;">
+
+            <div class="empty-state" *ngIf="courses.length === 0">
+              <mat-icon class="empty-state-icon">school</mat-icon>
+              <h4>No Courses Loaded</h4>
+              <p>Upload course data (Excel or PDF) or use default courses to get started</p>
+            </div>
 
             <div class="courses-preview" *ngIf="courses.length > 0">
               <h4>
@@ -86,8 +93,7 @@
                   *ngFor="let course of courses.slice(0, 5)"
                   (click)="onCourseClick(course, $event)"
                   class="course-chip-button clickable"
-                  [class.has-syllabus]="getCourseHasSyllabus(course)"
-                  matTooltip="Click to view syllabus">
+                  [class.has-syllabus]="getCourseHasSyllabus(course)">
                   <mat-icon *ngIf="getCourseHasSyllabus(course)" class="chip-icon">article</mat-icon>
                   {{ course.label }}
                 </button>
@@ -196,22 +202,113 @@
             </div>
 
             <div class="analysis-results" *ngIf="currentStep > 3">
-              <h4>Analysis Results</h4>
-              <div class="confidence-display">
-                <span class="confidence-label">Overall Confidence:</span>
-                <span class="confidence-value" [ngClass]="getConfidenceClass(overallConfidence)">
-                  {{ (overallConfidence * 100).toFixed(0) }}%
-                </span>
-              </div>
-              
-              <div class="results-summary">
-                <div class="summary-item">
-                  <span class="summary-label">Mapped Jobs:</span>
-                  <span class="summary-value">{{ Object.keys(mappings).length }}</span>
+              <h4>
+                <mat-icon class="section-icon">analytics</mat-icon>
+                Analysis Dashboard
+              </h4>
+
+              <!-- Statistics Overview -->
+              <div class="stats-overview">
+                <div class="stat-card mapped">
+                  <mat-icon>check_circle</mat-icon>
+                  <div class="stat-content">
+                    <span class="stat-value">{{ Object.keys(mappings).length }}</span>
+                    <span class="stat-label">Jobs Mapped</span>
+                  </div>
                 </div>
-                <div class="summary-item">
-                  <span class="summary-label">Suggested Courses:</span>
-                  <span class="summary-value">{{ suggestedCourses.length }}</span>
+                <div class="stat-card unmapped">
+                  <mat-icon>pending</mat-icon>
+                  <div class="stat-content">
+                    <span class="stat-value">{{ getUnmappedJobsCount() }}</span>
+                    <span class="stat-label">Jobs Unmapped</span>
+                  </div>
+                </div>
+                <div class="stat-card suggested">
+                  <mat-icon>lightbulb</mat-icon>
+                  <div class="stat-content">
+                    <span class="stat-value">{{ suggestedCourses.length }}</span>
+                    <span class="stat-label">New Courses Suggested</span>
+                  </div>
+                </div>
+                <div class="stat-card total">
+                  <mat-icon>work</mat-icon>
+                  <div class="stat-content">
+                    <span class="stat-value">{{ jobTitles.length }}</span>
+                    <span class="stat-label">Total Jobs Analyzed</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Coverage Visualization -->
+              <div class="coverage-section" *ngIf="Object.keys(mappings).length > 0">
+                <h5>
+                  <mat-icon>bar_chart</mat-icon>
+                  Curriculum Coverage
+                </h5>
+                <div class="coverage-bars">
+                  <div class="coverage-item" *ngFor="let job of Object.keys(mappings)">
+                    <div class="coverage-header">
+                      <span class="job-title">{{ job }}</span>
+                      <span class="coverage-percent">{{ getMappingCoveragePercent(job) }}%</span>
+                    </div>
+                    <div class="coverage-bar-container">
+                      <div class="coverage-bar"
+                           [style.width.%]="getMappingCoveragePercent(job)"
+                           [class.high]="getMappingCoveragePercent(job) >= 80"
+                           [class.medium]="getMappingCoveragePercent(job) >= 50 && getMappingCoveragePercent(job) < 80"
+                           [class.low]="getMappingCoveragePercent(job) < 50">
+                      </div>
+                    </div>
+                    <div class="coverage-details">
+                      <span class="mapped-course">{{ getMappedCourseLabel(job) }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Skills Gap Analysis -->
+              <div class="skills-gap-section" *ngIf="hasJobDescriptions()">
+                <h5>
+                  <mat-icon>psychology</mat-icon>
+                  Skills Gap Analysis
+                </h5>
+                <div class="gap-analysis-grid">
+                  <div class="gap-card" *ngFor="let job of getJobsWithDescriptions()">
+                    <div class="gap-card-header">
+                      <span class="gap-job-title">{{ job.label }}</span>
+                      <mat-icon class="expand-icon">expand_more</mat-icon>
+                    </div>
+                    <div class="gap-card-body">
+                      <div class="skills-covered" *ngIf="getSkillsCovered(job).length > 0">
+                        <span class="skills-section-title">
+                          <mat-icon>check</mat-icon>
+                          Skills Covered
+                        </span>
+                        <div class="skill-chips">
+                          <span class="skill-chip covered" *ngFor="let skill of getSkillsCovered(job).slice(0, 5)">
+                            {{ skill }}
+                          </span>
+                          <span class="skill-more" *ngIf="getSkillsCovered(job).length > 5">
+                            +{{ getSkillsCovered(job).length - 5 }} more
+                          </span>
+                        </div>
+                      </div>
+                      <div class="skills-missing" *ngIf="getSkillsGap(job).length > 0">
+                        <span class="skills-section-title">
+                          <mat-icon>priority_high</mat-icon>
+                          Skills Gap
+                        </span>
+                        <div class="skill-chips">
+                          <span class="skill-chip missing" *ngFor="let skill of getSkillsGap(job).slice(0, 5)">
+                            {{ skill }}
+                          </span>
+                          <span class="skill-more" *ngIf="getSkillsGap(job).length > 5">
+                            +{{ getSkillsGap(job).length - 5 }} more
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -279,10 +376,9 @@
                     mat-stroked-button
                     *ngFor="let mapping of mappingsArray.slice(0, 8)"
                     (click)="onCourseClickFromArray(mapping.course, mapping.job)"
-                    class="course-chip-button matched-course clickable"
-                    matTooltip="Click to view syllabus - Matched for: {{ mapping.job }}">
+                    class="course-chip-button matched-course clickable">
                     <mat-icon class="chip-icon">done</mat-icon>
-                    {{ mapping.course }}
+                    {{ getCourseLabelSafe(mapping.course) }}
                   </button>
                   <button 
                     mat-stroked-button
@@ -301,19 +397,15 @@
                   Recommended Additional Courses
                 </h4>
                 <div class="course-chips">
-                  <button 
+                  <button
                     mat-stroked-button
                     *ngFor="let suggestion of suggestedCourses.slice(0, 6)"
                     (click)="onSuggestedCourseClick(suggestion)"
                     class="course-chip-button suggested-course"
-                    [class.confidence-high]="suggestion.confidence >= 0.8"
-                    [class.confidence-medium]="suggestion.confidence >= 0.6 && suggestion.confidence < 0.8"
-                    [class.confidence-low]="suggestion.confidence < 0.6"
                     [class.enhanced-syllabus]="suggestion.improvement_type === 'enhanced_syllabus'"
                     [matTooltip]="getSuggestionTooltip(suggestion)">
                     <mat-icon class="chip-icon">{{ getSuggestionIcon(suggestion) }}</mat-icon>
                     {{ suggestion.title }}
-                    <span class="confidence-badge">{{ (suggestion.confidence * 100).toFixed(0) }}%</span>
                   </button>
                   <button 
                     mat-stroked-button
@@ -341,11 +433,11 @@
                       <mat-icon *ngIf="hasJobDescription(mapping.job)" class="job-info-icon">info</mat-icon>
                     </div>
                     <mat-icon class="mapping-arrow">arrow_forward</mat-icon>
-                    <div class="course-section clickable" 
+                    <div class="course-section clickable"
                          (click)="onCourseClickFromArray(mapping.course, mapping.job)"
-                         matTooltip="Click to view {{ mapping.course }} syllabus">
+                         matTooltip="Click to view {{ getCourseLabelSafe(mapping.course) }} syllabus">
                       <mat-icon>school</mat-icon>
-                      <span class="course-title">{{ mapping.course }}</span>
+                      <span class="course-title">{{ getCourseLabelSafe(mapping.course) }}</span>
                     </div>
                   </div>
                 </div>
@@ -357,16 +449,16 @@
     </div>
 
     <!-- Status Bar -->
-    <div class="status-bar">
+    <div class="status-bar" *ngIf="showStatusBar" [class]="getStatusBarClass()" [class.status-bar-hiding]="isStatusBarHiding">
       <div class="status-content">
         <mat-icon class="status-icon" [ngClass]="getStatusIconClass()">
           {{ getStatusIcon() }}
         </mat-icon>
         <span class="status-message">{{ statusMessage }}</span>
-        
+
         <div class="status-actions">
-          <button 
-            mat-icon-button 
+          <button
+            mat-icon-button
             *ngIf="isLoading"
             (click)="showProgressDialog = true"
             matTooltip="Show Progress"
@@ -375,12 +467,19 @@
           </button>
         </div>
       </div>
-      
-      <mat-progress-bar 
+
+      <mat-progress-bar
         *ngIf="isLoading"
         mode="indeterminate"
         class="status-progress">
       </mat-progress-bar>
+    </div>
+
+    <!-- Copyright Footer -->
+    <div class="copyright-footer">
+      <span class="footer-text">
+        By Venkat L. Turlapati | Property of University of Texas at Dallas
+      </span>
     </div>
   </div>
 </div>
@@ -389,7 +488,7 @@
 <div class="progress-overlay" *ngIf="showProgressDialog && isLoading">
   <mat-card class="progress-dialog">
     <mat-card-header>
-      <mat-card-title>Processing</mat-card-title>
+      <mat-card-title>Step {{ currentStep }}: {{ getCurrentStepName() }} - Processing</mat-card-title>
     </mat-card-header>
     
     <mat-card-content>

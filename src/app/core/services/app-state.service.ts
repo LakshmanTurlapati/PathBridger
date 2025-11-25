@@ -230,15 +230,9 @@ export class AppStateService {
       jobSuggestionMappings: response.job_suggestion_mappings || {},
       suggestedCourses: response.suggested_courses || [],
       overallConfidence: response.overall_confidence || 1.0,
-      currentStep: 4
+      currentStep: 4,
+      statusMessage: 'AI analysis complete - review the mappings below'
     };
-
-    // Set appropriate status message
-    if (response.overall_confidence && response.overall_confidence < 0.9) {
-      updates.statusMessage = `AI analysis complete - Low confidence (${(response.overall_confidence * 100).toFixed(0)}%). Check suggestions.`;
-    } else {
-      updates.statusMessage = 'AI analysis complete - review the mappings below';
-    }
 
     this.updateState(updates);
   }

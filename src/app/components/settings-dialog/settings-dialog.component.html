@@ -47,39 +47,13 @@
       </div>
     </div>
 
-    <!-- Appearance Section -->
-    <div class="section">
-      <h3 class="section-title">
-        <mat-icon>palette</mat-icon>
-        Appearance
-      </h3>
-      
-      <mat-form-field appearance="outline" class="full-width">
-        <mat-label>Theme</mat-label>
-        <mat-select formControlName="theme">
-          <mat-option value="light">
-            <mat-icon>light_mode</mat-icon>
-            Light
-          </mat-option>
-          <mat-option value="dark">
-            <mat-icon>dark_mode</mat-icon>
-            Dark
-          </mat-option>
-          <mat-option value="auto">
-            <mat-icon>brightness_auto</mat-icon>
-            Auto (System)
-          </mat-option>
-        </mat-select>
-      </mat-form-field>
-    </div>
-
     <!-- Behavior Section -->
     <div class="section">
       <h3 class="section-title">
         <mat-icon>settings_applications</mat-icon>
         Behavior
       </h3>
-      
+
       <div class="toggle-option">
         <mat-slide-toggle formControlName="autoSaveProgress">
           Auto-save progress
@@ -88,6 +62,29 @@
           Automatically save your work progress to browser storage
         </p>
       </div>
+    </div>
+
+    <!-- Data Management Section -->
+    <div class="section">
+      <h3 class="section-title">
+        <mat-icon>storage</mat-icon>
+        Data Management
+      </h3>
+
+      <div class="cache-info">
+        <p class="cache-description">
+          Clear cached data including syllabus content, course mappings, and job titles. Your API key and settings will be preserved.
+        </p>
+      </div>
+
+      <button
+        mat-stroked-button
+        type="button"
+        color="warn"
+        (click)="clearAppCache()">
+        <mat-icon>delete_sweep</mat-icon>
+        Clear Cache
+      </button>
     </div>
 
     <!-- Info Section -->
