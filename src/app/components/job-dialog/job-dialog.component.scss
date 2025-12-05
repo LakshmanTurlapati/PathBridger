@@ -1,5 +1,5 @@
 .job-tabs {
-  min-width: 600px;
+  width: min(600px, 90vw);
 }
 
 .tab-content {
@@ -46,17 +46,17 @@
   text-align: center;
   margin-bottom: 24px;
   padding: 16px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--mat-sys-primary) 0%, var(--mat-sys-tertiary) 100%);
   border-radius: 8px;
 
   .fetch-button {
     background: white;
-    color: #667eea;
+    color: var(--mat-sys-primary);
     font-weight: 500;
     padding: 8px 24px;
 
     &:hover:not(:disabled) {
-      background: #f5f5f5;
+      background: var(--mat-sys-surface-container);
     }
 
     &:disabled {
@@ -115,7 +115,7 @@
 .fetched-jobs-section {
   margin-top: 24px;
   padding: 16px;
-  background-color: #e3f2fd;
+  background-color: var(--mat-sys-primary-container);
   border-radius: 8px;
 
   h3 {
@@ -123,7 +123,7 @@
     align-items: center;
     gap: 8px;
     margin: 0 0 12px 0;
-    color: #1976d2;
+    color: var(--mat-sys-primary);
     font-size: 16px;
     font-weight: 500;
 
@@ -136,8 +136,8 @@
 
   .fetched-jobs-chips {
     mat-chip {
-      background-color: #1976d2 !important;
-      color: white !important;
+      background-color: var(--mat-sys-primary) !important;
+      color: var(--mat-sys-on-primary) !important;
     }
   }
 
@@ -155,16 +155,16 @@
             font-size: 18px;
             width: 18px;
             height: 18px;
-            color: #1976d2;
+            color: var(--mat-sys-primary);
           }
-          
+
           .trend-chip {
             margin-left: auto;
             font-size: 11px;
             min-height: 20px;
             padding: 0 8px;
-            background-color: #4caf50 !important;
-            color: white !important;
+            background-color: var(--mat-sys-tertiary) !important;
+            color: var(--mat-sys-on-tertiary) !important;
           }
         }
       }
@@ -191,26 +191,26 @@
           mat-chip {
             font-size: 12px;
             min-height: 24px;
-            background-color: #e0e0e0 !important;
+            background-color: var(--mat-sys-surface-container-high) !important;
           }
         }
-        
+
         .job-metadata {
           display: flex;
           gap: 16px;
-          
+
           .metadata-item {
             display: flex;
             align-items: center;
             gap: 4px;
             font-size: 13px;
-            color: rgba(0, 0, 0, 0.6);
-            
+            color: var(--mat-sys-on-surface-variant);
+
             mat-icon {
               font-size: 16px;
               width: 16px;
               height: 16px;
-              color: #1976d2;
+              color: var(--mat-sys-primary);
             }
           }
         }
@@ -225,12 +225,12 @@
   gap: 8px;
   margin-top: 16px;
   padding: 12px;
-  background-color: #f5f5f5;
+  background-color: var(--mat-sys-surface-container);
   border-radius: 4px;
   font-size: 14px;
 
   mat-icon {
-    color: #1976d2;
+    color: var(--mat-sys-primary);
     font-size: 20px;
     width: 20px;
     height: 20px;

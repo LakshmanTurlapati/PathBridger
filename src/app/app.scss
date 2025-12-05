@@ -143,6 +143,27 @@
       font-size: 14px;
       line-height: 1.5;
     }
+
+    // Step Navigation Buttons
+    .step-navigation {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(0, 0, 0, 0.08);
+
+      button {
+        min-width: 120px;
+        border-radius: 12px;
+
+        mat-icon {
+          font-size: 18px;
+          width: 18px;
+          height: 18px;
+        }
+      }
+    }
   }
 
   .action-buttons {
@@ -1050,6 +1071,12 @@
   }
 }
 
+// Spin animation for loading indicators
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 // Status Bar animations
 @keyframes statusSlideIn {
   from {
@@ -1236,6 +1263,16 @@
     position: relative;
     z-index: 1;
 
+    // Spinner shown during loading
+    .status-spinner {
+      margin-right: 12px;
+      flex-shrink: 0;
+
+      ::ng-deep circle {
+        stroke: white !important;
+      }
+    }
+
     .status-icon {
       margin-right: 12px;
       width: 24px;
@@ -1245,7 +1282,7 @@
 
       &.status-loading {
         color: var(--mat-sys-primary);
-        animation: pulse 2s ease-in-out infinite alternate;
+        animation: spin 1s linear infinite;
       }
 
       &.status-success {
@@ -1287,11 +1324,11 @@
     bottom: 0;
     left: 0;
     right: 0;
-    height: 3px;
+    height: 4px;
     background: rgba(255, 255, 255, 0.3);
 
     .mat-progress-bar {
-      height: 3px;
+      height: 4px;
     }
   }
 
@@ -1328,92 +1365,6 @@
   }
 }
 
-// Progress Dialog
-.progress-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  pointer-events: none;
-
-  .progress-dialog {
-    min-width: 400px;
-    max-width: 600px;
-    max-height: 80vh;
-    overflow-y: auto;
-    pointer-events: auto;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.24);
-    border: 2px solid var(--mat-sys-primary);
-
-    .progress-content {
-      padding: 16px 0;
-
-      p {
-        margin: 16px 0;
-        color: var(--mat-sys-on-surface-variant);
-      }
-
-      .logs-section {
-        margin-top: 24px;
-
-        h4 {
-          margin: 0 0 12px 0;
-          font-size: 14px;
-          font-weight: 500;
-          color: var(--mat-sys-on-surface);
-        }
-
-        .logs-container {
-          max-height: 200px;
-          overflow-y: auto;
-          background-color: var(--mat-sys-surface-variant);
-          border-radius: 8px;
-          padding: 12px;
-
-          .log-entry {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 8px;
-            font-size: 12px;
-            line-height: 1.4;
-
-            .log-timestamp {
-              color: var(--mat-sys-on-surface-variant);
-              min-width: 80px;
-            }
-
-            .log-message {
-              flex: 1;
-            }
-
-            &.log-info .log-message {
-              color: var(--mat-sys-on-surface);
-            }
-
-            &.log-success .log-message {
-              color: var(--mat-sys-tertiary);
-            }
-
-            &.log-warning .log-message {
-              color: var(--mat-sys-secondary);
-            }
-
-            &.log-error .log-message {
-              color: var(--mat-sys-error);
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
 // Responsive Design
 @media (max-width: 768px) {
   .app-content {
@@ -1445,11 +1396,6 @@
     .logo-section .app-title {
       font-size: 20px;
     }
-  }
-
-  .progress-overlay .progress-dialog {
-    min-width: calc(100vw - 32px);
-    margin: 16px;
   }
 }
 

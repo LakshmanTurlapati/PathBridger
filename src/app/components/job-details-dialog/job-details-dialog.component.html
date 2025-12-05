@@ -10,7 +10,18 @@
       <mat-icon>description</mat-icon>
       Role Description
     </h3>
-    <p class="description-text">{{ job.description }}</p>
+    <p class="description-text">{{ cleanDescription(job.description) }}</p>
+    <div class="source-links" *ngIf="extractSourceUrls(job.description).length > 0">
+      <span class="source-label">Sources:</span>
+      <a *ngFor="let url of extractSourceUrls(job.description)"
+         [href]="url"
+         target="_blank"
+         rel="noopener noreferrer"
+         class="source-link">
+        <mat-icon>open_in_new</mat-icon>
+        {{ getDomain(url) }}
+      </a>
+    </div>
   </div>
 
   <!-- Skills Section -->
@@ -59,7 +70,32 @@
       <mat-icon>source</mat-icon>
       <div>
         <h4>Data Source</h4>
-        <p class="source-label">{{ job.source === 'live' ? 'Live Market Data' : job.source === 'cached' ? 'Cached Data' : 'Manual Entry' }}</p>
+        <a *ngIf="job.sourceUrl"
+           [href]="job.sourceUrl"
+           target="_blank"
+           rel="noopener noreferrer"
+           class="source-url-link">
+          <mat-icon>open_in_new</mat-icon>
+          {{ getDomain(job.sourceUrl) }}
+        </a>
+        <p *ngIf="!job.sourceUrl" class="source-label">{{ job.source === 'live' ? 'Live Market Data' : job.source === 'cached' ? 'Cached Data' : 'Manual Entry' }}</p>
+      </div>
+    </div>
+
+    <div class="info-card sources-card" *ngIf="getAllSourceUrls().length > 0">
+      <mat-icon color="primary">link</mat-icon>
+      <div>
+        <h4>Reference Sources</h4>
+        <div class="source-url-list">
+          <a *ngFor="let url of getAllSourceUrls()"
+             [href]="url"
+             target="_blank"
+             rel="noopener noreferrer"
+             class="source-url-link">
+            <mat-icon>open_in_new</mat-icon>
+            {{ getDomain(url) }}
+          </a>
+        </div>
       </div>
     </div>
   </div>

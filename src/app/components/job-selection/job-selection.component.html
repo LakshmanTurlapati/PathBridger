@@ -1,0 +1,94 @@
+<div class="job-selection-section">
+  <!-- Header with Actions -->
+  <div class="section-header">
+    <div class="header-info">
+      <h3>
+        <mat-icon>work</mat-icon>
+        Target Job Roles
+      </h3>
+      <span class="job-count" *ngIf="hasJobs">
+        {{ jobs.length }} selected
+        <span class="with-descriptions" *ngIf="jobsWithDescriptionsCount > 0">
+          ({{ jobsWithDescriptionsCount }} with details)
+        </span>
+      </span>
+    </div>
+
+    <div class="header-actions">
+      <button
+        mat-stroked-button
+        color="primary"
+        (click)="openJobDialog('both')"
+        [disabled]="isLoading"
+        matTooltip="Add job titles manually or from trending categories">
+        <mat-icon>add</mat-icon>
+        Add Jobs
+      </button>
+
+      <button
+        mat-icon-button
+        color="warn"
+        *ngIf="hasJobs"
+        (click)="clearAllJobs()"
+        [disabled]="isLoading"
+        matTooltip="Clear all job titles">
+        <mat-icon>delete_sweep</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- Jobs Display -->
+  <div class="jobs-container" *ngIf="hasJobs">
+    <mat-chip-set>
+      <mat-chip
+        *ngFor="let job of displayedJobs"
+        (click)="showJobDetails(job)"
+        [highlighted]="hasJobDescription(job)"
+        [matTooltip]="getJobTooltip(job)"
+        matTooltipClass="multiline-tooltip"
+        class="job-chip">
+        <mat-icon matChipAvatar *ngIf="hasJobDescription(job)">star</mat-icon>
+        {{ job.label }}
+        <button
+          matChipRemove
+          (click)="removeJob(job, $event)"
+          [disabled]="isLoading"
+          aria-label="Remove job">
+          <mat-icon>cancel</mat-icon>
+        </button>
+      </mat-chip>
+    </mat-chip-set>
+
+    <button
+      mat-button
+      color="primary"
+      *ngIf="hasMoreJobs"
+      (click)="openJobDialog('both')"
+      class="show-more-btn">
+      +{{ remainingJobsCount }} more
+    </button>
+  </div>
+
+  <!-- Empty State -->
+  <div class="empty-state" *ngIf="!hasJobs && !isLoading">
+    <mat-icon>work_outline</mat-icon>
+    <p>No job titles selected yet.</p>
+    <p class="hint">Add job titles to find matching courses and career paths.</p>
+
+    <div class="quick-add-buttons">
+      <button
+        mat-raised-button
+        color="primary"
+        (click)="openJobDialog('both')">
+        <mat-icon>add</mat-icon>
+        Add Job Titles
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div class="loading-state" *ngIf="isLoading">
+    <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+    <p>Processing...</p>
+  </div>
+</div>

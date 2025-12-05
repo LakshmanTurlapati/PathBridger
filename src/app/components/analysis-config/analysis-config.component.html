@@ -1,0 +1,104 @@
+<div class="analysis-config-section">
+  <!-- Header -->
+  <div class="section-header">
+    <h3>
+      <mat-icon>psychology</mat-icon>
+      AI Career Path Analysis
+    </h3>
+    <p class="description">
+      Analyze job-to-course mappings using AI with confidence scoring and skills gap identification.
+    </p>
+  </div>
+
+  <!-- Prerequisites Checklist -->
+  <div class="prerequisites-section" *ngIf="!allPrerequisitesMet">
+    <h4>
+      <mat-icon>checklist</mat-icon>
+      Prerequisites
+    </h4>
+    <div class="prerequisites-list">
+      <div
+        *ngFor="let prereq of prerequisites"
+        class="prerequisite-item"
+        [class.met]="prereq.met"
+        [class.unmet]="!prereq.met">
+        <mat-icon>{{ prereq.met ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+        <span class="prereq-label">{{ prereq.label }}</span>
+        <button
+          mat-button
+          color="primary"
+          *ngIf="!prereq.met && prereq.action === 'settings'"
+          (click)="onOpenSettings()"
+          class="prereq-action">
+          Configure
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ready State -->
+  <div class="ready-state" *ngIf="allPrerequisitesMet && !isProcessing">
+    <div class="ready-info">
+      <mat-icon class="ready-icon">verified</mat-icon>
+      <div class="ready-text">
+        <span class="ready-title">Ready to Analyze</span>
+        <span class="ready-details">
+          {{ coursesCount }} courses and {{ jobsCount }} job titles will be analyzed
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Processing State -->
+  <div class="processing-state" *ngIf="isProcessing">
+    <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+    <div class="processing-info">
+      <mat-icon class="processing-icon">psychology</mat-icon>
+      <span>AI is analyzing career paths...</span>
+    </div>
+    <p class="processing-hint">This may take a moment depending on the data size.</p>
+  </div>
+
+  <!-- Action Button -->
+  <div class="action-section">
+    <button
+      mat-raised-button
+      color="primary"
+      class="analyze-button"
+      (click)="onStartAnalysis()"
+      [disabled]="!canAnalyze || isProcessing">
+      <mat-icon>{{ isProcessing ? 'hourglass_empty' : 'psychology' }}</mat-icon>
+      {{ isProcessing ? 'Analyzing...' : 'Start AI Analysis' }}
+    </button>
+
+    <span class="action-hint" *ngIf="!canAnalyze && !isProcessing">
+      Complete the prerequisites above to start analysis
+    </span>
+  </div>
+
+  <!-- API Key Warning (prominent) -->
+  <div class="warning-banner" *ngIf="!hasApiKey">
+    <mat-icon color="warn">warning</mat-icon>
+    <div class="warning-content">
+      <span class="warning-title">API Key Required</span>
+      <span class="warning-text">Configure your Grok API key in settings to enable AI analysis.</span>
+    </div>
+    <button mat-stroked-button color="warn" (click)="onOpenSettings()">
+      Open Settings
+    </button>
+  </div>
+
+  <!-- Analysis Info -->
+  <div class="info-section" *ngIf="allPrerequisitesMet">
+    <mat-icon>info_outline</mat-icon>
+    <div class="info-content">
+      <p>The AI will analyze:</p>
+      <ul>
+        <li>Match job requirements to existing courses</li>
+        <li>Calculate confidence scores for each mapping</li>
+        <li>Identify skills gaps in your curriculum</li>
+        <li>Suggest new courses for unmapped jobs</li>
+      </ul>
+    </div>
+  </div>
+</div>

@@ -37,25 +37,52 @@ export const APP_CONSTANTS = {
   STORAGE_KEYS: {
     SETTINGS: 'pathfinder_v2_settings',
     APP_STATE: 'pathfinder_v2_state',
-    EXCEL_DATA: 'pathfinder_v2_excel_data'
+    EXCEL_DATA: 'pathfinder_v2_excel_data',
+    SYLLABUS_DATA: 'pathfinder_syllabus_data_v2',
+    SYLLABUS_CACHE: 'pathfinder_syllabus_cache',
+    CACHED_JOB_TITLES: 'cached_job_titles'
   },
 
-  // xAI Grok 3 Mini API configuration
+  // API Timeout configuration (in milliseconds)
+  TIMEOUTS: {
+    API_SHORT: 15000,      // 15 seconds - for quick operations
+    API_MEDIUM: 30000,     // 30 seconds - for standard operations
+    API_LONG: 45000,       // 45 seconds - for complex operations
+    API_EXTENDED: 60000,   // 60 seconds - for very complex operations
+    DEBOUNCE_AUTOSAVE: 2000, // 2 seconds - for auto-save debounce
+    CONNECTION_TEST: 10000   // 10 seconds - for API connection tests
+  },
+
+  // File processing limits
+  FILE_LIMITS: {
+    MAX_SIZE_MB: 10,
+    MAX_SIZE_BYTES: 10 * 1024 * 1024, // 10MB
+    MAX_PDF_PAGES: 100,
+    MAX_COURSES_PER_FILE: 500
+  },
+
+  // Cache configuration
+  CACHE_CONFIG: {
+    JOB_CACHE_DURATION_MS: 24 * 60 * 60 * 1000, // 24 hours
+    SYLLABUS_CACHE_VERSION: '2.0'
+  },
+
+  // xAI Grok API configuration
   GROK_API: {
-    BASE_URL: 'https://api.x.ai/v1/chat/completions',
-    MODEL: 'grok-3-mini',
+    BASE_URL: 'https://api.x.ai/v1/chat/completions',      // For non-search requests
+    RESPONSES_URL: 'https://api.x.ai/v1/responses',        // For web search (Agent Tools API)
+    MODEL: 'grok-3-mini',                                   // For non-search requests
+    SEARCH_MODEL: 'grok-4-1-fast',                         // Optimized for agentic tool calling
     DEFAULT_CONFIG: {
       temperature: 0.3,
-      max_tokens: 1024, // Reduced for faster responses
+      max_tokens: 1024,
       top_p: 0.8,
-      reasoning_effort: 'low' as 'low' | 'high' // Low effort for faster processing
+      reasoning_effort: 'low' as 'low' | 'high'
     },
-    LIVE_SEARCH_CONFIG: {
-      enabled: true, // Live Search enabled for real-time job data
-      mode: 'auto' as 'auto' | 'on' | 'off',
-      return_citations: false, // Disable citations for cleaner job data
-      sources: [{ type: 'web' }]
-    }
+    // Web search tools for Responses API
+    SEARCH_TOOLS: [
+      { type: 'web_search' }
+    ]
   },
 
   // Excel parsing configuration

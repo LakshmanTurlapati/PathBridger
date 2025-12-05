@@ -1,0 +1,155 @@
+<div class="results-view-section" *ngIf="showResults && hasResults">
+  <!-- Results Header -->
+  <div class="results-header">
+    <h4>
+      <mat-icon class="section-icon">analytics</mat-icon>
+      Analysis Dashboard
+    </h4>
+    <button
+      mat-stroked-button
+      color="primary"
+      (click)="onExportResults()"
+      matTooltip="Export results to Excel">
+      <mat-icon>download</mat-icon>
+      Export
+    </button>
+  </div>
+
+  <!-- Statistics Overview -->
+  <div class="stats-overview">
+    <div class="stat-card mapped">
+      <mat-icon>check_circle</mat-icon>
+      <div class="stat-content">
+        <span class="stat-value">{{ mappedJobsCount }}</span>
+        <span class="stat-label">Jobs Mapped</span>
+      </div>
+    </div>
+    <div class="stat-card unmapped">
+      <mat-icon>pending</mat-icon>
+      <div class="stat-content">
+        <span class="stat-value">{{ unmappedJobsCount }}</span>
+        <span class="stat-label">Jobs Unmapped</span>
+      </div>
+    </div>
+    <div class="stat-card suggested">
+      <mat-icon>lightbulb</mat-icon>
+      <div class="stat-content">
+        <span class="stat-value">{{ suggestedCourses.length }}</span>
+        <span class="stat-label">New Courses Suggested</span>
+      </div>
+    </div>
+    <div class="stat-card total">
+      <mat-icon>work</mat-icon>
+      <div class="stat-content">
+        <span class="stat-value">{{ jobTitles.length }}</span>
+        <span class="stat-label">Total Jobs Analyzed</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Coverage Visualization -->
+  <div class="coverage-section" *ngIf="mappedJobsCount > 0">
+    <h5>
+      <mat-icon>bar_chart</mat-icon>
+      Curriculum Coverage
+    </h5>
+    <div class="coverage-bars">
+      <div class="coverage-item" *ngFor="let job of Object.keys(mappings)">
+        <div class="coverage-header">
+          <span class="job-title">{{ job }}</span>
+          <span class="coverage-percent">{{ getMappingCoveragePercent(job) }}%</span>
+        </div>
+        <div class="coverage-bar-container">
+          <div
+            class="coverage-bar"
+            [style.width.%]="getMappingCoveragePercent(job)"
+            [ngClass]="getCoverageClass(getMappingCoveragePercent(job))">
+          </div>
+        </div>
+        <div class="coverage-details">
+          <span class="mapped-course">{{ getMappedCourseLabel(job) }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Skills Gap Analysis -->
+  <div class="skills-gap-section" *ngIf="hasJobDescriptions()">
+    <h5>
+      <mat-icon>psychology</mat-icon>
+      Skills Gap Analysis
+    </h5>
+    <div class="gap-analysis-grid">
+      <div class="gap-card" *ngFor="let job of getJobsWithDescriptions()">
+        <div class="gap-card-header" (click)="showJobDetails(job)">
+          <span class="gap-job-title">{{ job.label }}</span>
+          <mat-icon class="expand-icon">open_in_new</mat-icon>
+        </div>
+        <div class="gap-card-body">
+          <div class="skills-covered" *ngIf="getSkillsCovered(job).length > 0">
+            <span class="skills-section-title">
+              <mat-icon>check</mat-icon>
+              Skills Covered
+            </span>
+            <div class="skill-chips">
+              <span class="skill-chip covered" *ngFor="let skill of getSkillsCovered(job).slice(0, 5)">
+                {{ skill }}
+              </span>
+              <span class="skill-more" *ngIf="getSkillsCovered(job).length > 5">
+                +{{ getSkillsCovered(job).length - 5 }} more
+              </span>
+            </div>
+          </div>
+          <div class="skills-missing" *ngIf="getSkillsGap(job).length > 0">
+            <span class="skills-section-title">
+              <mat-icon>priority_high</mat-icon>
+              Skills Gap
+            </span>
+            <div class="skill-chips">
+              <span class="skill-chip missing" *ngFor="let skill of getSkillsGap(job).slice(0, 5)">
+                {{ skill }}
+              </span>
+              <span class="skill-more" *ngIf="getSkillsGap(job).length > 5">
+                +{{ getSkillsGap(job).length - 5 }} more
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Suggested Courses -->
+  <div class="suggested-courses-section" *ngIf="suggestedCourses.length > 0">
+    <h5>
+      <mat-icon>school</mat-icon>
+      Suggested New Courses
+    </h5>
+    <div class="suggested-courses-grid">
+      <div class="suggested-course-card" *ngFor="let course of suggestedCourses">
+        <div class="course-header">
+          <span class="course-name">{{ course.title }}</span>
+          <span class="confidence-badge" [class.high]="course.confidence >= 0.8">
+            {{ (course.confidence * 100).toFixed(0) }}% match
+          </span>
+        </div>
+        <p class="course-description" *ngIf="course.description">
+          {{ course.description }}
+        </p>
+        <div class="course-meta">
+          <span class="target-job" *ngIf="course.related_jobs?.length">
+            <mat-icon>work</mat-icon>
+            For: {{ course.related_jobs?.join(', ') }}
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Empty State -->
+<div class="empty-results" *ngIf="showResults && !hasResults">
+  <mat-icon>analytics</mat-icon>
+  <p>No analysis results yet.</p>
+  <p class="hint">Run the AI analysis to see job-course mappings and recommendations.</p>
+</div>

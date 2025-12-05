@@ -1,0 +1,47 @@
+<!-- Processing Progress Dialog -->
+<div class="progress-overlay" *ngIf="showDialog">
+  <mat-card class="progress-card">
+    <mat-card-header>
+      <mat-card-title>Processing</mat-card-title>
+    </mat-card-header>
+
+    <mat-card-content>
+      <div class="progress-content">
+        <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+        <p class="processing-message">{{ processingMessage }}</p>
+
+        <div class="logs-section" *ngIf="hasLogs">
+          <h4>Progress Log:</h4>
+          <div class="logs-container">
+            <div
+              *ngFor="let log of getRecentLogs()"
+              class="log-entry"
+              [ngClass]="getLogClass(log.type)">
+              <span class="log-timestamp">{{ formatLogTime(log.timestamp) }}</span>
+              <span class="log-message">{{ log.message }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </mat-card-content>
+
+    <mat-card-actions align="end">
+      <button mat-button (click)="closeDialog()">
+        Hide
+      </button>
+    </mat-card-actions>
+  </mat-card>
+</div>
+
+<!-- Compact Log Display (for inline use) -->
+<ng-template #compactLogs>
+  <div class="compact-logs" *ngIf="hasLogs">
+    <div
+      *ngFor="let log of getRecentLogs()"
+      class="log-entry compact"
+      [ngClass]="getLogClass(log.type)">
+      <span class="log-timestamp">{{ formatLogTime(log.timestamp) }}</span>
+      <span class="log-message">{{ log.message }}</span>
+    </div>
+  </div>
+</ng-template>

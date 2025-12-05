@@ -1,12 +1,12 @@
 import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { SettingsService } from '../../core/services/settings.service';
 import { AiClientService } from '../../core/services/ai-client.service';
 import { AppStateService } from '../../core/services/app-state.service';
 import { ExcelParserService } from '../../core/services/excel-parser.service';
 import { JobScraperService } from '../../core/services/job-scraper.service';
+import { NotificationService } from '../../core/services/notification.service';
 import { AppSettings } from '../../shared/interfaces/data-models';
 
 @Component({
@@ -26,7 +26,7 @@ export class SettingsDialogComponent implements OnInit {
     private dialogRef: MatDialogRef<SettingsDialogComponent>,
     private settingsService: SettingsService,
     private aiClientService: AiClientService,
-    private snackBar: MatSnackBar,
+    private notification: NotificationService,
     private dialog: MatDialog,
     private appStateService: AppStateService,
     private excelParserService: ExcelParserService,
@@ -43,7 +43,8 @@ export class SettingsDialogComponent implements OnInit {
     
     this.settingsForm = this.fb.group({
       grokApiKey: [currentApiKey, [
-        Validators.pattern(/^xai-[0-9A-Za-z-_]{40,}$/)
+        // Relaxed pattern: just require "xai-" prefix followed by at least one valid character
+        Validators.pattern(/^xai-[0-9A-Za-z-_]+$/)
       ]],
       autoSaveProgress: [this.currentSettings.autoSaveProgress ?? true]
     });
@@ -157,26 +158,17 @@ export class SettingsDialogComponent implements OnInit {
     this.dialogRef.close(false);
   }
 
-  // Helper methods for notifications
+  // Helper methods for notifications - delegating to NotificationService
   private showSuccess(message: string): void {
-    this.snackBar.open(message, 'Close', {
-      duration: 3000,
-      panelClass: ['success-snackbar']
-    });
+    this.notification.showSuccess(message);
   }
 
   private showError(message: string): void {
-    this.snackBar.open(message, 'Close', {
-      duration: 5000,
-      panelClass: ['error-snackbar']
-    });
+    this.notification.showError(message);
   }
 
   private showInfo(message: string): void {
-    this.snackBar.open(message, 'Close', {
-      duration: 3000,
-      panelClass: ['info-snackbar']
-    });
+    this.notification.showInfo(message);
   }
 
   // Helper method for API key display

@@ -8,7 +8,7 @@
       </div>
       
       <div class="header-actions">
-        <button mat-icon-button (click)="openSettings()" matTooltip="Settings" aria-label="Settings">
+        <button mat-icon-button (click)="openSettings()" aria-label="Settings">
           <mat-icon>settings</mat-icon>
         </button>
       </div>
@@ -80,32 +80,43 @@
             <div class="courses-preview" *ngIf="courses.length > 0">
               <h4>
                 Loaded Courses ({{ courses.length }})
-                <mat-icon 
-                  *ngIf="hasSyllabusData" 
+                <mat-icon
+                  *ngIf="hasSyllabusData"
                   class="syllabus-indicator"
                   matTooltip="Click courses to view syllabus">
                   description
                 </mat-icon>
               </h4>
               <div class="course-chips">
-                <button 
+                <button
                   mat-stroked-button
-                  *ngFor="let course of courses.slice(0, 5)"
+                  *ngFor="let course of (showAllCourses ? courses : courses.slice(0, 5))"
                   (click)="onCourseClick(course, $event)"
                   class="course-chip-button clickable"
                   [class.has-syllabus]="getCourseHasSyllabus(course)">
                   <mat-icon *ngIf="getCourseHasSyllabus(course)" class="chip-icon">article</mat-icon>
                   {{ course.label }}
                 </button>
-                <button 
+                <button
                   mat-stroked-button
                   *ngIf="courses.length > 5"
                   (click)="showAllCoursesDialog()"
-                  class="course-chip-button"
-                  matTooltip="View all courses">
-                  +{{ courses.length - 5 }} more
+                  class="course-chip-button">
+                  {{ showAllCourses ? 'Show less' : '+' + (courses.length - 5) + ' more' }}
                 </button>
               </div>
+            </div>
+
+            <!-- Step Navigation -->
+            <div class="step-navigation">
+              <button
+                mat-raised-button
+                color="primary"
+                (click)="goToNextStep()"
+                [disabled]="!canGoToNextStep() || isLoading">
+                Next
+                <mat-icon>arrow_forward</mat-icon>
+              </button>
             </div>
           </div>
         </mat-step>
@@ -154,8 +165,8 @@
               <h4>Selected Job Titles ({{ jobTitles.length }})</h4>
               <div class="job-chips">
                 <mat-chip-set>
-                  <mat-chip 
-                    *ngFor="let job of jobTitles.slice(0, 5)"
+                  <mat-chip
+                    *ngFor="let job of (showAllJobsExpanded ? jobTitles : jobTitles.slice(0, 5))"
                     (click)="showJobDetails(job)"
                     class="clickable-chip"
                     [matTooltip]="'Click to view details'"
@@ -167,13 +178,32 @@
                     </span>
                     <mat-icon *ngIf="job.description" class="job-info-icon">info</mat-icon>
                   </mat-chip>
-                  <mat-chip 
+                  <mat-chip
                     *ngIf="jobTitles.length > 5"
                     (click)="showAllJobs()">
-                    +{{ jobTitles.length - 5 }} more
+                    {{ showAllJobsExpanded ? 'Show less' : '+' + (jobTitles.length - 5) + ' more' }}
                   </mat-chip>
                 </mat-chip-set>
               </div>
+            </div>
+
+            <!-- Step Navigation -->
+            <div class="step-navigation">
+              <button
+                mat-stroked-button
+                (click)="goToPreviousStep()"
+                [disabled]="isLoading">
+                <mat-icon>arrow_back</mat-icon>
+                Previous
+              </button>
+              <button
+                mat-raised-button
+                color="primary"
+                (click)="goToNextStep()"
+                [disabled]="!canGoToNextStep() || isLoading">
+                Next
+                <mat-icon>arrow_forward</mat-icon>
+              </button>
             </div>
           </div>
         </mat-step>
@@ -312,6 +342,25 @@
                 </div>
               </div>
             </div>
+
+            <!-- Step Navigation -->
+            <div class="step-navigation">
+              <button
+                mat-stroked-button
+                (click)="goToPreviousStep()"
+                [disabled]="isLoading">
+                <mat-icon>arrow_back</mat-icon>
+                Previous
+              </button>
+              <button
+                mat-raised-button
+                color="primary"
+                (click)="goToNextStep()"
+                [disabled]="!canGoToNextStep() || isLoading">
+                Next
+                <mat-icon>arrow_forward</mat-icon>
+              </button>
+            </div>
           </div>
         </mat-step>
 
@@ -442,6 +491,17 @@
                   </div>
                 </div>
               </div>
+
+              <!-- Step Navigation -->
+              <div class="step-navigation">
+                <button
+                  mat-stroked-button
+                  (click)="goToPreviousStep()"
+                  [disabled]="isLoading">
+                  <mat-icon>arrow_back</mat-icon>
+                  Previous
+                </button>
+              </div>
             </div>
           </div>
         </mat-step>
@@ -451,21 +511,12 @@
     <!-- Status Bar -->
     <div class="status-bar" *ngIf="showStatusBar" [class]="getStatusBarClass()" [class.status-bar-hiding]="isStatusBarHiding">
       <div class="status-content">
-        <mat-icon class="status-icon" [ngClass]="getStatusIconClass()">
+        <!-- Show spinner when loading, icon otherwise -->
+        <mat-spinner *ngIf="isLoading" diameter="20" class="status-spinner"></mat-spinner>
+        <mat-icon *ngIf="!isLoading" class="status-icon" [ngClass]="getStatusIconClass()">
           {{ getStatusIcon() }}
         </mat-icon>
         <span class="status-message">{{ statusMessage }}</span>
-
-        <div class="status-actions">
-          <button
-            mat-icon-button
-            *ngIf="isLoading"
-            (click)="showProgressDialog = true"
-            matTooltip="Show Progress"
-            aria-label="Show Progress">
-            <mat-icon>info</mat-icon>
-          </button>
-        </div>
       </div>
 
       <mat-progress-bar
@@ -482,41 +533,6 @@
       </span>
     </div>
   </div>
-</div>
-
-<!-- Progress Dialog -->
-<div class="progress-overlay" *ngIf="showProgressDialog && isLoading">
-  <mat-card class="progress-dialog">
-    <mat-card-header>
-      <mat-card-title>Step {{ currentStep }}: {{ getCurrentStepName() }} - Processing</mat-card-title>
-    </mat-card-header>
-    
-    <mat-card-content>
-      <div class="progress-content">
-        <mat-progress-bar mode="indeterminate"></mat-progress-bar>
-        <p>{{ processingMessage }}</p>
-        
-        <div class="logs-section" *ngIf="logs.length > 0">
-          <h4>Progress Log:</h4>
-          <div class="logs-container">
-            <div 
-              *ngFor="let log of logs.slice(-5)" 
-              class="log-entry"
-              [ngClass]="'log-' + log.type">
-              <span class="log-timestamp">{{ formatLogTime(log.timestamp) }}</span>
-              <span class="log-message">{{ log.message }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </mat-card-content>
-    
-    <mat-card-actions>
-      <button mat-button (click)="showProgressDialog = false">
-        Hide
-      </button>
-    </mat-card-actions>
-  </mat-card>
 </div>
 
 <router-outlet />

@@ -173,48 +173,48 @@ export class ExcelParserService {
       // Detect title column
       if (headerStr.includes('title') || headerStr.includes('course') || headerStr.includes('name')) {
         columnMap['title'] = index;
-        console.log(`  ✓ Detected as TITLE column`);
+        console.log(`  [Parser] Detected as TITLE column`);
       }
       
       // Detect code column
       if (headerStr.includes('code') || headerStr.includes('number') || headerStr.includes('id')) {
         columnMap['code'] = index;
-        console.log(`  ✓ Detected as CODE column`);
+        console.log(`  [Parser] Detected as CODE column`);
       }
       
       // Detect description column
       if (headerStr.includes('description') || headerStr.includes('desc') || headerStr.includes('detail')) {
         columnMap['description'] = index;
-        console.log(`  ✓ Detected as DESCRIPTION column`);
+        console.log(`  [Parser] Detected as DESCRIPTION column`);
       }
       
       // Detect credit hours column
       if (headerStr.includes('credit') || headerStr.includes('hour') || headerStr.includes('unit')) {
         columnMap['credit_hours'] = index;
-        console.log(`  ✓ Detected as CREDIT_HOURS column`);
+        console.log(`  [Parser] Detected as CREDIT_HOURS column`);
       }
       
       // Detect category column
       if (headerStr.includes('category') || headerStr.includes('type')) {
         columnMap['category'] = index;
-        console.log(`  ✓ Detected as CATEGORY column`);
+        console.log(`  [Parser] Detected as CATEGORY column`);
       }
       
       // Detect syllabus content column - be specific to avoid false matches
       // Don't match "content_length" as syllabus content
       if (headerStr.includes('syllabus_content') || headerStr.includes('syllabus content')) {
         columnMap['syllabus_content'] = index;
-        console.log(`  ✓ Detected as SYLLABUS_CONTENT column`);
+        console.log(`  [Parser] Detected as SYLLABUS_CONTENT column`);
       } else if (headerStr === 'content' || (headerStr.includes('content') && !headerStr.includes('length'))) {
         // Only match generic "content" if it doesn't contain "length"
         columnMap['syllabus_content'] = index;
-        console.log(`  ✓ Detected as SYLLABUS_CONTENT column (generic match)`);
+        console.log(`  [Parser] Detected as SYLLABUS_CONTENT column (generic match)`);
       }
       
       // Detect syllabus file column
       if (headerStr.includes('syllabus_file') || headerStr.includes('syllabus file') || headerStr.includes('file')) {
         columnMap['syllabus_file'] = index;
-        console.log(`  ✓ Detected as SYLLABUS_FILE column`);
+        console.log(`  [Parser] Detected as SYLLABUS_FILE column`);
       }
     });
 
@@ -484,9 +484,9 @@ export class ExcelParserService {
     for (let i = 0; i < row.length; i++) {
       const cellValue = row[i]?.toString() || '';
       if (cellValue.length > 100 && cellValue.includes('Week')) {
-        console.log(`  ⚠️ Found potential syllabus content in column ${i} (length: ${cellValue.length})`);
+        console.log(`  [Warning] Found potential syllabus content in column ${i} (length: ${cellValue.length})`);
         if (i !== syllabusContentIndex) {
-          console.log(`  ⚠️ WARNING: This is NOT the column being used! Using column ${syllabusContentIndex} instead`);
+          console.log(`  [Warning] This is NOT the column being used! Using column ${syllabusContentIndex} instead`);
           console.log(`  First 100 chars of column ${i}: "${cellValue.substring(0, 100)}..."`);
         }
       }
@@ -538,9 +538,9 @@ export class ExcelParserService {
     // Only parse syllabus if content is valid
     if (syllabusContent && isValidSyllabusContent(syllabusContent)) {
       course.syllabus = this.parseSyllabusContent(syllabusContent, course);
-      console.log('✓ Valid syllabus content parsed for:', code);
+      console.log('[Parser] Valid syllabus content parsed for:', code);
     } else {
-      console.warn(`⚠️ Invalid or missing syllabus content for course: ${code}`);
+      console.warn(`[Warning] Invalid or missing syllabus content for course: ${code}`);
       console.warn(`  Original content: "${syllabusContent}"`);
       // Don't set invalid content, leave it empty for fallback to work
       course.syllabus = {

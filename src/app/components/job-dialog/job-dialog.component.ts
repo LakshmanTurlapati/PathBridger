@@ -1,10 +1,11 @@
 import { Component, OnInit, Inject } from '@angular/core';
 import { FormBuilder, FormGroup, FormArray, FormControl, Validators } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { JobTitle } from '../../shared/interfaces/data-models';
 import { JobScraperService } from '../../core/services/job-scraper.service';
 import { SettingsService } from '../../core/services/settings.service';
+import { NotificationService } from '../../core/services/notification.service';
+import { getExperienceLevelLabel } from '../../shared/utils/experience-level.utils';
 
 export interface JobDialogData {
   existingJobs: JobTitle[];
@@ -104,7 +105,7 @@ export class JobDialogComponent implements OnInit {
     private dialogRef: MatDialogRef<JobDialogComponent>,
     private jobScraperService: JobScraperService,
     private settingsService: SettingsService,
-    private snackBar: MatSnackBar,
+    private notification: NotificationService,
     @Inject(MAT_DIALOG_DATA) public data: JobDialogData
   ) {}
 
@@ -276,26 +277,17 @@ export class JobDialogComponent implements OnInit {
     this.dialogRef.close(null);
   }
 
-  // Helper methods for notifications
+  // Helper methods for notifications - delegating to NotificationService
   private showSuccess(message: string): void {
-    this.snackBar.open(message, 'Close', {
-      duration: 3000,
-      panelClass: ['success-snackbar']
-    });
+    this.notification.showSuccess(message);
   }
 
   private showError(message: string): void {
-    this.snackBar.open(message, 'Close', {
-      duration: 5000,
-      panelClass: ['error-snackbar']
-    });
+    this.notification.showError(message);
   }
 
   private showInfo(message: string): void {
-    this.snackBar.open(message, 'Close', {
-      duration: 3000,
-      panelClass: ['info-snackbar']
-    });
+    this.notification.showInfo(message);
   }
 
   // Get selected jobs count for display
@@ -316,14 +308,8 @@ export class JobDialogComponent implements OnInit {
     }
   }
 
-  // Get experience level label
+  // Get experience level label - using shared utility
   getExperienceLevelLabel(level: string): string {
-    const levelMap: { [key: string]: string } = {
-      'entry': 'Entry Level',
-      'mid': 'Mid-Level',
-      'senior': 'Senior Level',
-      'lead': 'Lead/Principal'
-    };
-    return levelMap[level] || level;
+    return getExperienceLevelLabel(level);
   }
 }

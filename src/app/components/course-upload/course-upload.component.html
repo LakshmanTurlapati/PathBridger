@@ -1,0 +1,108 @@
+<div class="course-upload-section">
+  <!-- File Upload Area -->
+  <div class="upload-area" (click)="triggerFileUpload()" [class.loading]="isLoading">
+    <input
+      #fileInput
+      type="file"
+      accept=".xlsx,.xls,.csv,.pdf"
+      multiple
+      (change)="onFileSelected($event)"
+      hidden
+    />
+
+    <mat-icon class="upload-icon">cloud_upload</mat-icon>
+    <h3>Upload Course Data</h3>
+    <p class="upload-hint">
+      Drop your course Excel file (.xlsx, .xls, .csv) or PDF syllabus files here, or click to browse
+    </p>
+
+    <div class="supported-formats">
+      <span class="format-chip">Excel (.xlsx, .xls)</span>
+      <span class="format-chip">CSV</span>
+      <span class="format-chip">PDF Syllabus</span>
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="quick-actions">
+    <button
+      mat-stroked-button
+      color="primary"
+      (click)="loadDefaultCourses()"
+      [disabled]="isLoading"
+      matTooltip="Load sample course data for testing">
+      <mat-icon>dataset</mat-icon>
+      Load Default Courses
+    </button>
+
+    <button
+      mat-stroked-button
+      color="accent"
+      (click)="loadSampleSyllabus()"
+      [disabled]="isLoading"
+      matTooltip="Load sample syllabus data for testing">
+      <mat-icon>description</mat-icon>
+      Load Sample Syllabus
+    </button>
+
+    <button
+      mat-stroked-button
+      color="warn"
+      (click)="clearSyllabusCache()"
+      *ngIf="hasSyllabusData"
+      [disabled]="isLoading"
+      matTooltip="Clear cached syllabus data">
+      <mat-icon>delete_sweep</mat-icon>
+      Clear Syllabus Cache
+    </button>
+  </div>
+
+  <!-- Loaded Courses Preview -->
+  <div class="courses-preview" *ngIf="hasCourses">
+    <div class="preview-header">
+      <h4>
+        <mat-icon>school</mat-icon>
+        Loaded Courses ({{ courses.length }})
+      </h4>
+      <span class="syllabus-count" *ngIf="coursesWithSyllabusCount > 0">
+        {{ coursesWithSyllabusCount }} with syllabus
+      </span>
+    </div>
+
+    <div class="course-chips">
+      <mat-chip-set>
+        <mat-chip
+          *ngFor="let course of displayedCourses"
+          (click)="onCourseClick(course, $event)"
+          [highlighted]="getCourseHasSyllabus(course)"
+          [matTooltip]="course.label">
+          {{ course.label }}
+          <mat-icon matChipTrailingIcon *ngIf="getCourseHasSyllabus(course)">
+            check_circle
+          </mat-icon>
+        </mat-chip>
+      </mat-chip-set>
+
+      <button
+        mat-button
+        color="primary"
+        *ngIf="hasMoreCourses"
+        (click)="showAllCourses()"
+        class="show-more-btn">
+        +{{ remainingCoursesCount }} more
+      </button>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div class="empty-state" *ngIf="!hasCourses && !isLoading">
+    <mat-icon>info_outline</mat-icon>
+    <p>No courses loaded yet. Upload a file or load default courses to get started.</p>
+  </div>
+
+  <!-- Loading Indicator -->
+  <div class="loading-state" *ngIf="isLoading">
+    <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+    <p>Processing files...</p>
+  </div>
+</div>

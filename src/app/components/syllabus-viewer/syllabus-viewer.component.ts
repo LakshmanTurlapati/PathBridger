@@ -200,8 +200,8 @@ export class SyllabusViewerComponent implements OnInit {
       }
     }
     
-    // Store enhancements for this course (would need to be passed to parent component)
-    console.log('Course enhancements tracked:', enhancements);
+    // Enhancements tracked for this course (debug-only)
+    // console.debug('Course enhancements:', enhancements);
     
     return rows;
   }

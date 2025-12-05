@@ -12,6 +12,7 @@ import { MatStepperModule } from '@angular/material/stepper';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -32,13 +33,23 @@ import { App } from './app';
 import { SettingsDialogComponent } from './components/settings-dialog/settings-dialog.component';
 import { JobDialogComponent } from './components/job-dialog/job-dialog.component';
 import { JobDetailsDialogComponent } from './components/job-details-dialog/job-details-dialog.component';
+import { ProcessingLogsComponent } from './components/processing-logs/processing-logs.component';
+import { CourseUploadComponent } from './components/course-upload/course-upload.component';
+import { JobSelectionComponent } from './components/job-selection/job-selection.component';
+import { AnalysisConfigComponent } from './components/analysis-config/analysis-config.component';
+import { ResultsViewComponent } from './components/results-view/results-view.component';
 
 @NgModule({
   declarations: [
     App,
     SettingsDialogComponent,
     JobDialogComponent,
-    JobDetailsDialogComponent
+    JobDetailsDialogComponent,
+    ProcessingLogsComponent,
+    CourseUploadComponent,
+    JobSelectionComponent,
+    AnalysisConfigComponent,
+    ResultsViewComponent
   ],
   imports: [
     BrowserModule,
@@ -55,6 +66,7 @@ import { JobDetailsDialogComponent } from './components/job-details-dialog/job-d
     MatCardModule,
     MatChipsModule,
     MatProgressBarModule,
+    MatProgressSpinnerModule,
     MatSnackBarModule,
     MatDialogModule,
     MatTooltipModule,

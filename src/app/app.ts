@@ -1,4 +1,5 @@
-import { Component, ViewChild, ElementRef, OnInit, AfterViewInit, OnDestroy } from '@angular/core';
+import { Component, ViewChild, ElementRef, OnInit, AfterViewInit, OnDestroy, HostListener } from '@angular/core';
+import { MatStepper } from '@angular/material/stepper';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Subject, takeUntil, combineLatest, forkJoin, of } from 'rxjs';
@@ -11,6 +12,7 @@ import { ExcelParserService } from './core/services/excel-parser.service';
 import { PdfParserService } from './core/services/pdf-parser.service';
 import { AiClientService } from './core/services/ai-client.service';
 import { JobScraperService } from './core/services/job-scraper.service';
+import { NotificationService } from './core/services/notification.service';
 
 import { SettingsDialogComponent } from './components/settings-dialog/settings-dialog.component';
 import { JobDialogComponent, JobDialogData, JobDialogResult } from './components/job-dialog/job-dialog.component';
@@ -43,6 +45,7 @@ declare const VANTA: any;
 })
 export class App implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
+  @ViewChild('stepper') stepper!: MatStepper;
 
   // Application constants
   readonly appInfo = APP_CONSTANTS.APP_INFO;
@@ -53,12 +56,15 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
   isLoading = false;
   isProcessing = false;
   statusMessage = 'Ready to start. Upload course data or use defaults.';
-  showProgressDialog = false;
   processingMessage = '';
   showStatusBar = true;
   isStatusBarHiding = false;
   private statusBarTimer: any = null;
   private vantaEffect: any = null;
+
+  // UI state
+  showAllCourses = false;
+  showAllJobsExpanded = false;
 
   // Data properties
   courses: Course[] = [];
@@ -95,6 +101,7 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
     private pdfParserService: PdfParserService,
     private aiClientService: AiClientService,
     private jobScraperService: JobScraperService,
+    private notification: NotificationService,
     private dialog: MatDialog,
     private snackBar: MatSnackBar
   ) {}
@@ -106,6 +113,9 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
 
     // Load cached syllabus data on initialization
     this.loadCachedSyllabusData();
+
+    // Load cached job data on initialization
+    this.loadCachedJobsData();
 
     // Apply saved theme on initialization
     const savedTheme = this.settingsService.getTheme();
@@ -197,9 +207,6 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(isProcessing => {
         this.isProcessing = isProcessing;
-        if (isProcessing && !this.isLoading) {
-          this.showProgressDialog = true;
-        }
       });
   }
 
@@ -214,7 +221,7 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
 
     if (!files || files.length === 0) return;
 
-    console.log('\n📁 USER ACTION: File Upload');
+    console.log('[File Upload] Processing uploaded files');
     console.log('Number of files selected:', files.length);
 
     // Convert FileList to Array
@@ -270,15 +277,16 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
     this.appStateService.setLoading(true);
     this.appStateService.setProcessing(true);
     this.processingMessage = `Processing PDF syllabus: ${file.name}`;
+    this.statusMessage = `Processing PDF syllabus: ${file.name}`;
 
     this.appStateService.addLog({
       type: 'info',
       message: `Starting PDF syllabus processing: ${file.name}`
     });
 
-    // Clear existing cache when uploading new PDF syllabus
+    // Clear existing cache when uploading new PDF syllabus (silent - don't show "cache cleared" message)
     console.log('New PDF syllabus uploaded, clearing old cache');
-    this.clearSyllabusCache();
+    this.clearSyllabusCache(true);
 
     // Process PDF as syllabus file
     this.pdfParserService.parsePdfFile(file)
@@ -343,6 +351,7 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
     this.appStateService.setLoading(true);
     this.appStateService.setProcessing(true);
     this.processingMessage = `Processing ${files.length} PDF syllabus file(s)...`;
+    this.statusMessage = `Processing ${files.length} PDF syllabus file(s)...`;
 
     this.appStateService.addLog({
       type: 'info',
@@ -351,8 +360,8 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
 
     console.log('Processing multiple PDF files:', files.map(f => f.name));
 
-    // Clear existing cache when uploading new PDF syllabi
-    this.clearSyllabusCache();
+    // Clear existing cache when uploading new PDF syllabi (silent - don't show "cache cleared" message)
+    this.clearSyllabusCache(true);
 
     // Process all PDFs using forkJoin for parallel processing
     const parseObservables = files.map((file, index) =>
@@ -451,7 +460,8 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
     this.appStateService.setLoading(true);
     this.appStateService.setProcessing(true);
     this.processingMessage = `Processing Excel file: ${file.name}`;
-    
+    this.statusMessage = `Processing Excel file: ${file.name}`;
+
     this.appStateService.addLog({
       type: 'info',
       message: `Starting Excel file processing: ${file.name}`
@@ -462,9 +472,9 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
                            file.name.toLowerCase().includes('mapping');
     
     if (isSyllabusFile) {
-      // Clear existing cache when uploading new syllabus file
+      // Clear existing cache when uploading new syllabus file (silent - don't show "cache cleared" message)
       console.log('New syllabus file uploaded, clearing old cache');
-      this.clearSyllabusCache();
+      this.clearSyllabusCache(true);
       // Process as syllabus file
       this.excelParserService.parseSyllabusExcelFile(file)
         .pipe(takeUntil(this.destroy$))
@@ -538,7 +548,7 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
                     }
                     
                     if (jsonCourse && jsonCourse.syllabus?.rawContent && jsonCourse.syllabus.rawContent.length > 100) {
-                      console.log(`✓ Merging JSON syllabus for ${excelCourse.code} (${jsonCourse.syllabus.rawContent.length} chars)`);
+                      console.log(`[Syllabus] Merging JSON syllabus for ${excelCourse.code} (${jsonCourse.syllabus.rawContent.length} chars)`);
                       mergedCount++;
                       return {
                         ...excelCourse,
@@ -546,7 +556,7 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
                         contentLength: jsonCourse.syllabus.rawContent.length
                       };
                     } else {
-                      console.warn(`✗ No valid JSON match found for ${excelCourse.code}`);
+                      console.warn(`[Syllabus] No valid JSON match found for ${excelCourse.code}`);
                     }
                     
                     return excelCourse;
@@ -663,7 +673,7 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
 
   // Action handlers
   loadDefaultCourses(): void {
-    console.log('\n📚 USER ACTION: Load Default Courses');
+    console.log('[Courses] Loading default courses');
     console.log('Timestamp:', new Date().toISOString());
     
     // Clear syllabus data when loading default courses
@@ -672,7 +682,7 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
     
     this.appStateService.loadDefaultCourses();
     this.appStateService.setCurrentStep(2);
-    console.log('✅ Default courses loaded successfully');
+    console.log('[Courses] Default courses loaded successfully');
     this.showSuccess('Loaded default courses');
   }
   
@@ -692,9 +702,9 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
       console.log('Loading sample syllabus data:', syllabusData);
       
       if (syllabusData && syllabusData.length > 0) {
-        // Clear any existing data first
-        this.clearSyllabusCache();
-        
+        // Clear any existing data first (silent - don't show "cache cleared" message)
+        this.clearSyllabusCache(true);
+
         // Process the data (which will also save to cache)
         this.processSyllabusData(syllabusData);
         
@@ -712,11 +722,27 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
   // Process syllabus data and update state
   private processSyllabusData(syllabusData: CourseWithSyllabus[]): void {
     console.log('\n=== PROCESSING SYLLABUS DATA ===');
-    console.log('Number of courses to process:', syllabusData.length);
-    
+    console.log('Number of courses received:', syllabusData.length);
+
+    // Deduplicate courses by code (keep first occurrence)
+    const seenCodes = new Set<string>();
+    const uniqueCourses = syllabusData.filter(course => {
+      const courseCode = course.code || course.id || '';
+      if (!courseCode || seenCodes.has(courseCode)) {
+        return false;
+      }
+      seenCodes.add(courseCode);
+      return true;
+    });
+
+    if (uniqueCourses.length !== syllabusData.length) {
+      console.log(`Removed ${syllabusData.length - uniqueCourses.length} duplicate course(s)`);
+    }
+    console.log('Number of unique courses to process:', uniqueCourses.length);
+
     // Store syllabus data and convert to regular Course format
     this.syllabusCoursesMap.clear();
-    const courseObjects: Course[] = syllabusData.map((course, index) => {
+    const courseObjects: Course[] = uniqueCourses.map((course, index) => {
       const courseId = course.code || course.id || `course-${index + 1}`;
       const courseLabel = `${course.code} ${course.title}`;
       
@@ -768,10 +794,10 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
     
     this.hasSyllabusData = true;
     console.log('\nFinal map size:', this.syllabusCoursesMap.size);
-    
-    // Save to cache after processing
-    this.saveSyllabusDataToCache(syllabusData);
-    
+
+    // Save deduplicated data to cache
+    this.saveSyllabusDataToCache(uniqueCourses);
+
     this.appStateService.setCourses(courseObjects);
     this.appStateService.setCurrentStep(2);
   }
@@ -823,15 +849,15 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
       // Validate cache version
       if (cacheData.version !== this.CACHE_VERSION) {
         console.log(`Cache version mismatch (${cacheData.version} vs ${this.CACHE_VERSION}), clearing cache`);
-        this.clearSyllabusCache();
+        this.clearSyllabusCache(true);
         return;
       }
-      
+
       // Validate cache integrity
       const checksum = this.generateChecksum(cacheData.data);
       if (checksum !== cacheData.checksum) {
         console.warn('Cache checksum mismatch, data may be corrupted');
-        this.clearSyllabusCache();
+        this.clearSyllabusCache(true);
         return;
       }
       
@@ -860,10 +886,10 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
       }
     } catch (error) {
       console.error('Failed to load cached syllabus data:', error);
-      this.clearSyllabusCache();
+      this.clearSyllabusCache(true);
     }
   }
-  
+
   private generateChecksum(data: any[]): string {
     // Simple checksum based on data length and first/last items
     const dataStr = `${data.length}_${JSON.stringify(data[0])}_${JSON.stringify(data[data.length - 1])}`;
@@ -887,7 +913,68 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  clearSyllabusCache(): void {
+  /**
+   * Load cached job data on initialization
+   * Restores jobs with descriptions from the job scraper cache
+   */
+  private loadCachedJobsData(): void {
+    try {
+      const cached = localStorage.getItem('cached_job_titles');
+      if (!cached) {
+        console.log('No cached job data found');
+        return;
+      }
+
+      const cacheData = JSON.parse(cached);
+      const age = Date.now() - (cacheData.cachedAt || 0);
+      const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+
+      // Check cache version
+      if (!cacheData.cacheVersion || cacheData.cacheVersion < '2.0') {
+        console.log('Job cache version outdated, skipping restore');
+        return;
+      }
+
+      if (age > maxAge) {
+        console.log('Job cache expired, skipping restore');
+        return;
+      }
+
+      if (cacheData.jobs && cacheData.jobs.length > 0) {
+        const ageInMinutes = Math.floor(age / (1000 * 60));
+        console.log(`Restoring ${cacheData.jobs.length} jobs from cache (${ageInMinutes} minutes old)`);
+
+        // Log if jobs have descriptions
+        const withDescriptions = cacheData.jobs.filter((j: any) => j.description).length;
+        console.log(`Jobs with descriptions: ${withDescriptions}/${cacheData.jobs.length}`);
+
+        this.appStateService.setJobTitles(cacheData.jobs);
+        this.showInfo(`Restored ${cacheData.jobs.length} jobs from cache`);
+      }
+    } catch (error) {
+      console.error('Failed to load cached job data:', error);
+    }
+  }
+
+  /**
+   * Force save all state before page unload
+   */
+  @HostListener('window:beforeunload')
+  onBeforeUnload(): void {
+    // Force save current syllabus state
+    this.saveCurrentSyllabusState();
+
+    // Manually trigger app state save (bypass debounce)
+    const state = this.appStateService.getCurrentState();
+    try {
+      localStorage.setItem(APP_CONSTANTS.STORAGE_KEYS.APP_STATE, JSON.stringify(state));
+      console.log('State saved before unload');
+    } catch (error) {
+      console.error('Failed to save state before unload:', error);
+    }
+  }
+
+  clearSyllabusCache(silent: boolean = false): void {
     try {
       localStorage.removeItem(this.SYLLABUS_CACHE_KEY);
       // Also remove old cache key if it exists
@@ -897,9 +984,11 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
       this.hasSyllabusData = false;
       this.courseEnhancements.clear();
       this.enhancedSyllabiMap.clear();
-      
+
       console.log('Cleared all syllabus cache data');
-      this.showInfo('Syllabus cache cleared');
+      if (!silent) {
+        this.showInfo('Syllabus cache cleared');
+      }
     } catch (error) {
       console.error('Failed to clear cache:', error);
       this.showError('Failed to clear syllabus cache');
@@ -1075,23 +1164,24 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
   }
 
   loadDefaultJobTitles(): void {
-    console.log('\n💼 USER ACTION: Load Default Job Titles');
+    console.log('[Jobs] Loading default job titles');
     console.log('Timestamp:', new Date().toISOString());
     
     if (!this.hasApiKey) {
-      console.error('❌ No API key configured');
+      console.error('[Error] No API key configured');
       this.showError('Please configure your Grok API key in settings to fetch job titles');
       return;
     }
     
-    console.log('✅ API key present, starting job fetch...');
+    console.log('[Jobs] API key present, starting job fetch...');
     this.appStateService.setLoading(true);
     this.processingMessage = 'Loading trending job titles...';
-    
+    this.statusMessage = 'Loading trending job titles...';
+
     // Fetch trending jobs (will use cache if available)
     this.jobScraperService.fetchTrendingJobs().subscribe({
       next: (result) => {
-        console.log('\n✅ Job fetch successful');
+        console.log('[Jobs] Job fetch successful');
         console.log('Result:', result);
         this.appStateService.setJobTitles(result.jobs);
         this.appStateService.setCurrentStep(3);
@@ -1105,7 +1195,7 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
         this.appStateService.setLoading(false);
       },
       error: (error) => {
-        console.error('\n❌ Failed to fetch trending jobs');
+        console.error('[Error] Failed to fetch trending jobs');
         console.error('Error details:', error);
         this.showError(`Failed to fetch job titles: ${error.message}`);
         this.appStateService.setLoading(false);
@@ -1114,23 +1204,24 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
   }
 
   refreshJobTitles(): void {
-    console.log('\n🔄 USER ACTION: Refresh Job Titles');
+    console.log('[Jobs] Refreshing job titles');
     console.log('Timestamp:', new Date().toISOString());
     
     if (!this.hasApiKey) {
-      console.error('❌ No API key configured');
+      console.error('[Error] No API key configured');
       this.showError('Please configure your Grok API key in settings to refresh job titles');
       return;
     }
     
-    console.log('✅ API key present, forcing refresh...');
+    console.log('[Jobs] API key present, forcing refresh...');
     this.appStateService.setLoading(true);
     this.processingMessage = 'Refreshing job titles from live web data...';
-    
+    this.statusMessage = 'Refreshing job titles from live web data...';
+
     // Force refresh (bypass cache)
     this.jobScraperService.fetchTrendingJobs(undefined, 10, true).subscribe({
       next: (result) => {
-        console.log('\n✅ Job refresh successful');
+        console.log('[Jobs] Job refresh successful');
         console.log('Result:', result);
         this.appStateService.setJobTitles(result.jobs);
         this.appStateService.setCurrentStep(3);
@@ -1138,7 +1229,7 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
         this.appStateService.setLoading(false);
       },
       error: (error) => {
-        console.error('\n❌ Failed to refresh trending jobs');
+        console.error('[Error] Failed to refresh trending jobs');
         console.error('Error details:', error);
         this.showError(`Failed to refresh job titles: ${error.message}`);
         this.appStateService.setLoading(false);
@@ -1147,22 +1238,23 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
   }
 
   analyzeCareerPaths(): void {
-    console.log('\n🤖 USER ACTION: Analyze Career Paths');
+    console.log('[Analysis] Starting career paths analysis');
     console.log('Timestamp:', new Date().toISOString());
     console.log('Current jobs:', this.jobTitles.length);
     console.log('Current courses:', this.courses.length);
     
     if (!this.hasApiKey) {
-      console.error('❌ No API key configured');
+      console.error('[Error] No API key configured');
       this.showError('Please configure your Grok API key in settings first');
       return;
     }
     
-    console.log('✅ Starting AI analysis...');
+    console.log('[Analysis] Starting AI analysis...');
     this.appStateService.setLoading(true);
     this.appStateService.setProcessing(true);
     this.processingMessage = 'Analyzing career paths with AI...';
-    
+    this.statusMessage = 'Analyzing career paths with AI...';
+
     this.appStateService.addLog({
       type: 'info',
       message: 'Starting AI analysis of career paths'
@@ -1174,7 +1266,7 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response) => {
-          console.log('\n✅ AI Analysis Complete!');
+          console.log('[Analysis] AI Analysis Complete!');
           console.log('Analysis response:', response);
           
           this.appStateService.addLog({
@@ -1192,7 +1284,7 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
           }
         },
         error: (error) => {
-          console.error('\n❌ AI Analysis Failed');
+          console.error('[Error] AI Analysis Failed');
           console.error('Error details:', error);
           
           this.appStateService.addLog({
@@ -1206,7 +1298,7 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private generateAllEnhancedSyllabi(analysisResponse: AnalysisResponse): void {
-    console.log('\n🔧 GENERATING ENHANCED SYLLABI FOR ALL COURSES');
+    console.log('[Enhancement] Generating enhanced syllabi for all courses');
     
     // First, generate enhanced syllabi for matched courses
     this.generateEnhancedSyllabiForMatchedCourses(analysisResponse);
@@ -1502,7 +1594,7 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
   }
   
   private generateEnhancedSyllabi(analysisResponse: AnalysisResponse): void {
-    console.log('\n🔧 GENERATING ENHANCED SYLLABI FOR UNMAPPED JOBS');
+    console.log('[Enhancement] Generating enhanced syllabi for unmapped jobs');
     
     // Find unmapped jobs
     const mappedJobs = Object.keys(analysisResponse.mappings || {});
@@ -1532,7 +1624,8 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
     }
 
     this.processingMessage = 'Generating enhanced syllabi...';
-    
+    this.statusMessage = 'Generating enhanced syllabi...';
+
     // Generate enhanced syllabi for selected courses
     let completedEnhancements = 0;
     const totalEnhancements = Math.min(coursesToEnhance.length, 3); // Limit to 3 enhancements
@@ -1546,7 +1639,7 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
         .pipe(takeUntil(this.destroy$))
         .subscribe({
           next: (enhancedSyllabus) => {
-            console.log('✅ Enhanced syllabus generated for:', course.title);
+            console.log('[Enhancement] Enhanced syllabus generated for:', course.title);
             
             // Convert to SuggestedCourse format
             const suggestedCourse: SuggestedCourse = {
@@ -1570,7 +1663,7 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
             }
           },
           error: (error) => {
-            console.error('❌ Failed to generate enhanced syllabus for:', course.title, error);
+            console.error('[Error] Failed to generate enhanced syllabus for:', course.title, error);
             completedEnhancements++;
             
             // Check if all attempts are complete (including failures)
@@ -1657,7 +1750,7 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
     originalResponse: AnalysisResponse, 
     enhancedSuggestedCourses: SuggestedCourse[]
   ): void {
-    console.log('✅ Finalizing enhanced syllabi:', enhancedSuggestedCourses.length);
+    console.log('[Enhancement] Finalizing enhanced syllabi:', enhancedSuggestedCourses.length);
     
     // Combine original analysis with enhanced syllabi
     const finalResponse: AnalysisResponse = {
@@ -1713,7 +1806,7 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
   }
 
   openSettings(): void {
-    console.log('\n⚙️ USER ACTION: Open Settings');
+    console.log('[Settings] Opening settings dialog');
     const dialogRef = this.dialog.open(SettingsDialogComponent, {
       width: '600px',
       maxHeight: '80vh',
@@ -1723,7 +1816,7 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
 
     dialogRef.afterClosed().subscribe((saved: boolean) => {
       if (saved) {
-        console.log('✅ Settings saved');
+        console.log('[Settings] Settings saved');
         // Refresh API key status
         this.hasApiKey = this.settingsService.hasApiKey();
         console.log('API key configured:', this.hasApiKey);
@@ -1754,7 +1847,6 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
   private finishProcessing(): void {
     this.appStateService.setLoading(false);
     this.appStateService.setProcessing(false);
-    this.showProgressDialog = false;
   }
 
   // UI helper methods
@@ -1962,8 +2054,7 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
   }
 
   showAllJobs(): void {
-    // TODO: Implement a dialog to show all jobs
-    console.log('Show all jobs - to be implemented');
+    this.showAllJobsExpanded = !this.showAllJobsExpanded;
   }
 
   // Helper to safely extract course label from mapping.course
@@ -1971,13 +2062,11 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
   getCourseLabelSafe(course: any): string {
     // If it's already a string, return it
     if (typeof course === 'string') {
-      console.log('Course is string:', course);
       return course;
     }
 
     // If it's an object with a label property, use that
     if (course && typeof course === 'object') {
-      console.warn('Course is object, extracting label:', course);
 
       // Try label property first
       if (course.label) {
@@ -2004,30 +2093,26 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
     return '[Unknown]';
   }
 
-  // Notification helpers - Disabled to use only custom status bar
+  // Notification helpers - Using status bar only (removed duplicate snackbar calls)
   private showSuccess(message: string): void {
     this.statusMessage = message;
-    console.log('Success:', message);
   }
 
   private showError(message: string): void {
     this.statusMessage = `Error: ${message}`;
-    console.error('Error:', message);
   }
 
   private showInfo(message: string): void {
     this.statusMessage = message;
-    console.log('Info:', message);
   }
 
   private showWarning(message: string): void {
     this.statusMessage = `Warning: ${message}`;
-    console.warn('Warning:', message);
   }
 
   // Suggested course click handler
   onSuggestedCourseClick(suggestion: SuggestedCourse): void {
-    console.log('\n🎯 USER ACTION: Suggested Course Click');
+    console.log('[Course] Suggested course clicked');
     console.log('Suggestion:', suggestion.title);
     console.log('Type:', suggestion.improvement_type);
     
@@ -2134,62 +2219,8 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
   }
   
   showAllCoursesDialog(): void {
-    console.log('🔥 showAllCoursesDialog clicked!');
-
-    if (this.courses.length === 0) {
-      this.showInfo('No courses available');
-      return;
-    }
-
-    // Create dialog content with all courses
-    const hasSyllabus = this.hasSyllabusData;
-    const dialogContent = `
-      <h3>All Loaded Courses (${this.courses.length})</h3>
-      <div class="courses-list" style="display: flex; flex-direction: column; gap: 8px;">
-        ${this.courses.map((course: Course) => {
-          const hasCourseSyllabus = this.getCourseHasSyllabus(course);
-          const icon = hasCourseSyllabus ? '<mat-icon class="course-icon" style="color: #1976d2;">article</mat-icon>' : '<mat-icon class="course-icon" style="color: #666;">school</mat-icon>';
-          const clickable = hasCourseSyllabus ? 'style="cursor: pointer; padding: 8px; border-radius: 4px;" onmouseover="this.style.backgroundColor=\'#f5f5f5\'" onmouseout="this.style.backgroundColor=\'transparent\'"' : '';
-          const courseId = `course-item-${course.id}`;
-
-          return `
-            <div class="course-row" ${clickable} data-course-id="${course.id}" id="${courseId}">
-              ${icon}
-              <span style="margin-left: 8px;">${course.label}</span>
-              ${hasCourseSyllabus ? '<span style="margin-left: auto; font-size: 12px; color: #1976d2;">View Syllabus →</span>' : ''}
-            </div>
-          `;
-        }).join('')}
-      </div>
-      ${hasSyllabus ? '<p style="margin-top: 16px; font-size: 12px; color: #666;"><mat-icon style="font-size: 14px; vertical-align: middle;">info</mat-icon> Click courses with syllabus icon to view details</p>' : ''}
-    `;
-
-    const dialogRef = this.dialog.open(JobDialogComponent, {
-      width: '600px',
-      maxHeight: '70vh',
-      data: {
-        title: 'All Courses',
-        content: dialogContent,
-        courses: this.courses,
-        mode: 'view'
-      },
-      panelClass: 'modern-dialog'
-    });
-
-    // Add click handlers after dialog opens
-    setTimeout(() => {
-      this.courses.forEach((course: Course) => {
-        if (this.getCourseHasSyllabus(course)) {
-          const element = document.getElementById(`course-item-${course.id}`);
-          if (element) {
-            element.addEventListener('click', () => {
-              dialogRef.close();
-              this.onCourseClick(course, new MouseEvent('click'));
-            });
-          }
-        }
-      });
-    }, 100);
+    // Toggle inline expansion of courses list
+    this.showAllCourses = !this.showAllCourses;
   }
   
   onCourseClickFromArray(courseName: string, job: string): void {
@@ -2300,25 +2331,25 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
     }
 
     if (!syllabusCourse) {
-      console.warn(`❌ Course NOT FOUND after all matching attempts - Label: "${courseLabel}", ID: "${courseId}"`);
+      console.warn(`[Warning] Course NOT FOUND after all matching attempts - Label: "${courseLabel}", ID: "${courseId}"`);
       console.warn('   Map has', this.syllabusCoursesMap.size, 'entries');
       console.warn('   Available keys:', Array.from(this.syllabusCoursesMap.keys()));
     } else {
       const found = syllabusCourse as CourseWithSyllabus;
-      console.log(`✅ Successfully found course: ${found.code} - ${found.title}`);
+      console.log(`[Course] Successfully found course: ${found.code} - ${found.title}`);
     }
 
     return syllabusCourse;
   }
   
   private openSyllabusDialog(course: CourseWithSyllabus): void {
-    console.log('\n🚀 OPENING SYLLABUS DIALOG 🚀');
-    console.log('📚 Course to display:', course);
-    console.log('🏷️ Course title:', course.title);
-    console.log('🆔 Course code:', course.code);
-    console.log('📄 Has syllabus:', !!course.syllabus);
-    console.log('📝 Has raw content:', !!course.syllabus?.rawContent);
-    console.log('📋 Weekly schedule length:', course.syllabus?.weeklySchedule?.length || 0);
+    console.log('[Dialog] Opening syllabus dialog');
+    console.log('[Dialog] Course to display:', course);
+    console.log('[Dialog] Course title:', course.title);
+    console.log('[Dialog] Course code:', course.code);
+    console.log('[Dialog] Has syllabus:', !!course.syllabus);
+    console.log('[Dialog] Has raw content:', !!course.syllabus?.rawContent);
+    console.log('[Dialog] Weekly schedule length:', course.syllabus?.weeklySchedule?.length || 0);
     
     try {
       const dialogRef = this.dialog.open(SyllabusDialogComponent, {
@@ -2331,23 +2362,23 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
         } as SyllabusDialogData,
         panelClass: 'modern-dialog'
       });
-      console.log('✅ Dialog opened successfully');
+      console.log('[Dialog] Dialog opened successfully');
     } catch (error) {
-      console.error('❌ Failed to open dialog:', error);
+      console.error('[Error] Failed to open dialog:', error);
       this.showError(`Failed to open syllabus dialog: ${error}`);
     }
   }
   
   private openCourseEnhancementDialog(course: CourseWithSyllabus): void {
     console.log('\n=== OPENING ENHANCEMENT DIALOG ===');
-    console.log('📚 Course:', course.title);
-    console.log('🔧 Calculating enhancements...');
+    console.log('[Enhancement] Course:', course.title);
+    console.log('[Enhancement] Calculating enhancements...');
     
     try {
       // Calculate enhancements for this course
       const enhancement = this.calculateCourseEnhancements(course);
-      console.log('✅ Enhancement calculation completed:', enhancement);
-      console.log('📊 Enhancement summary:');
+      console.log('[Enhancement] Enhancement calculation completed:', enhancement);
+      console.log('[Enhancement] Enhancement summary:');
       console.log('  - Gaps filled:', enhancement.gapsFilled.length);
       console.log('  - Topics enhanced:', enhancement.topicsEnhanced.length);
       console.log('  - Assignments moved:', enhancement.assignmentsMoved.length);
@@ -2361,8 +2392,8 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
         mode: 'enhancement' as const
       };
       
-      console.log('📄 Dialog data prepared:', enhancementData);
-      console.log('🎭 Opening dialog with SyllabusDialogComponent...');
+      console.log('[Dialog] Dialog data prepared:', enhancementData);
+      console.log('[Dialog] Opening dialog with SyllabusDialogComponent...');
       
       const dialogRef = this.dialog.open(SyllabusDialogComponent, {
         width: '100%',
@@ -2372,15 +2403,15 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
         panelClass: 'modern-dialog'
       });
       
-      console.log('✅ Dialog opened successfully. DialogRef:', dialogRef);
+      console.log('[Dialog] Dialog opened successfully. DialogRef:', dialogRef);
       
       // Add dialog result subscription for debugging
       dialogRef.afterClosed().subscribe(result => {
-        console.log('🔚 Enhancement dialog closed. Result:', result);
+        console.log('[Dialog] Enhancement dialog closed. Result:', result);
       });
       
     } catch (error) {
-      console.error('❌ ERROR in openCourseEnhancementDialog:', error);
+      console.error('[Error] ERROR in openCourseEnhancementDialog:', error);
       console.error('Error details:', {
         message: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined,
@@ -2391,9 +2422,9 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
   }
   
   private calculateCourseEnhancements(course: CourseWithSyllabus): CourseEnhancement {
-    console.log('🔬 Calculating enhancements for course:', course.title);
+    console.log('[Enhancement] Calculating enhancements for course:', course.title);
     const weeklySchedule = course.syllabus?.weeklySchedule || [];
-    console.log('📅 Weekly schedule entries:', weeklySchedule.length);
+    console.log('[Enhancement] Weekly schedule entries:', weeklySchedule.length);
     
     const weekMap = new Map<number, any[]>();
     
@@ -2453,7 +2484,7 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
       enhancementSummary
     };
     
-    console.log('✅ Enhancement calculation complete. Result:', result);
+    console.log('[Enhancement] Enhancement calculation complete. Result:', result);
     return result;
   }
   
@@ -2490,7 +2521,39 @@ export class App implements OnInit, AfterViewInit, OnDestroy {
     if (improvements.length === 0) {
       return 'Course syllabus was already well-structured';
     }
-    
+
     return improvements.join('; ');
+  }
+
+  // Step Navigation Methods
+  goToNextStep(): void {
+    if (this.stepper) {
+      this.stepper.next();
+      this.currentStep = this.stepper.selectedIndex + 1;
+    }
+  }
+
+  goToPreviousStep(): void {
+    if (this.stepper) {
+      this.stepper.previous();
+      this.currentStep = this.stepper.selectedIndex + 1;
+    }
+  }
+
+  canGoToNextStep(): boolean {
+    switch (this.currentStep) {
+      case 1:
+        return this.courses.length > 0;
+      case 2:
+        return this.jobTitles.length > 0;
+      case 3:
+        return Object.keys(this.mappings).length > 0;
+      default:
+        return false;
+    }
+  }
+
+  canGoToPreviousStep(): boolean {
+    return this.currentStep > 1;
   }
 }

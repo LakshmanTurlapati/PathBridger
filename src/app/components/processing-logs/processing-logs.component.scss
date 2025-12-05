@@ -1,0 +1,134 @@
+.progress-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.progress-card {
+  width: 500px;
+  max-width: 90vw;
+  max-height: 80vh;
+  overflow: hidden;
+}
+
+.progress-content {
+  padding: 16px 0;
+
+  .processing-message {
+    margin: 16px 0;
+    text-align: center;
+    color: var(--mat-sys-on-surface);
+  }
+}
+
+.logs-section {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--mat-sys-outline-variant);
+
+  h4 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.logs-container {
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--mat-sys-surface-container);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.log-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  border-radius: 4px;
+  font-size: 13px;
+  background: var(--mat-sys-surface);
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  .log-timestamp {
+    flex-shrink: 0;
+    font-family: monospace;
+    font-size: 11px;
+    color: var(--mat-sys-on-surface-variant);
+    min-width: 70px;
+  }
+
+  .log-message {
+    flex: 1;
+    word-break: break-word;
+  }
+
+  // Log type colors
+  &.log-info {
+    border-left: 3px solid #2196f3;
+
+    .log-message {
+      color: var(--mat-sys-on-surface);
+    }
+  }
+
+  &.log-success {
+    border-left: 3px solid #4caf50;
+    background: rgba(76, 175, 80, 0.1);
+
+    .log-message {
+      color: #2e7d32;
+    }
+  }
+
+  &.log-warning {
+    border-left: 3px solid #ff9800;
+    background: rgba(255, 152, 0, 0.1);
+
+    .log-message {
+      color: #e65100;
+    }
+  }
+
+  &.log-error {
+    border-left: 3px solid #f44336;
+    background: rgba(244, 67, 54, 0.1);
+
+    .log-message {
+      color: #c62828;
+    }
+  }
+
+  // Compact variant
+  &.compact {
+    padding: 4px 8px;
+    font-size: 12px;
+
+    .log-timestamp {
+      font-size: 10px;
+      min-width: 60px;
+    }
+  }
+}
+
+// Compact logs container (for inline display)
+.compact-logs {
+  max-height: 150px;
+  overflow-y: auto;
+  padding: 8px;
+  background: var(--mat-sys-surface-container);
+  border-radius: 8px;
+}

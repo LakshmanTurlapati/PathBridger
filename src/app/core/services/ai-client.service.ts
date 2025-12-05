@@ -123,7 +123,7 @@ MANDATORY RESPONSE FORMAT (return valid JSON only):
       if (!text || text === '') {
         text = (message as any)?.reasoning_content || '';
         if (text) {
-          console.log('📝 Using reasoning_content field for threshold parsing');
+          console.log('[AI] Using reasoning_content field for threshold parsing');
         }
       }
       
@@ -158,7 +158,7 @@ MANDATORY RESPONSE FORMAT (return valid JSON only):
         }
       });
 
-      console.log('✅ Parsed', Object.keys(thresholds).length, 'thresholds');
+      console.log('[AI] Parsed', Object.keys(thresholds).length, 'thresholds');
       return Object.keys(thresholds).length > 0 ? thresholds : this.getDefaultThresholds(response);
     } catch (error) {
       console.error('Failed to parse threshold response:', error);
@@ -186,17 +186,23 @@ MANDATORY RESPONSE FORMAT (return valid JSON only):
       }
     }
     
-    // Clean common JSON issues
+    // Clean common JSON issues - be careful not to break valid JSON
     text = text
       .trim()
       .replace(/^[^{\[]*/, '') // Remove text before JSON
       .replace(/[^}\]]*$/, '') // Remove text after JSON
-      .replace(/,\s*([}\]])/g, '$1') // Remove trailing commas
-      .replace(/'/g, '"') // Replace single quotes
-      .replace(/(\w+):/g, '"$1":') // Quote unquoted keys
-      .replace(/:\s*"([^"]*)"([^,}\]])/g, ':"$1",$2') // Add missing commas
-      .replace(/""([^"])/g, '"$1') // Fix double quotes
-      .replace(/([^"])"/g, '$1"'); // Fix double quotes
+      .replace(/,\s*([}\]])/g, '$1'); // Remove trailing commas
+
+    // Only do aggressive cleaning if initial parse fails
+    try {
+      JSON.parse(text);
+      return text; // Already valid, return as-is
+    } catch {
+      // Try more aggressive cleaning
+      text = text
+        .replace(/'/g, '"') // Replace single quotes with double quotes
+        .replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":'); // Quote only unquoted keys (after { or ,)
+    }
     
     // Validate it's parseable
     try {
@@ -235,9 +241,7 @@ MANDATORY RESPONSE FORMAT (return valid JSON only):
     apiKey: string 
   }): Observable<AnalysisResponse> {
     const { thresholds, request, apiKey } = data;
-    console.log('-------------------------------------');
-    console.log('🗺️ CREATING MAPPINGS & SUGGESTIONS');
-    console.log('-------------------------------------');
+    console.log('[AI] Creating mappings and suggestions');
     
     // Extract job descriptions if available
     const jobDescriptions = new Map<string, string>();
@@ -353,7 +357,7 @@ MANDATORY RESPONSE FORMAT (return valid JSON only):
       if (!text || text === '') {
         text = (message as any)?.reasoning_content || '';
         if (text) {
-          console.log('📝 Using reasoning_content field for mapping parsing');
+          console.log('[AI] Using reasoning_content field for mapping parsing');
         }
       }
       
@@ -712,8 +716,9 @@ MANDATORY RESPONSE FORMAT (return valid JSON only):
 
   /**
    * Call Grok API with proper headers and error handling
+   * @param maxTokensOverride - Optional override for max_tokens (useful for schedule extraction needing larger responses)
    */
-  private callGrokApi(prompt: string, apiKey: string, reasoningEffort: 'low' | 'medium' | 'high' = 'high'): Observable<GrokResponse> {
+  private callGrokApi(prompt: string, apiKey: string, reasoningEffort: 'low' | 'medium' | 'high' = 'high', maxTokensOverride?: number): Observable<GrokResponse> {
     const headers = new HttpHeaders({
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`
@@ -721,11 +726,13 @@ MANDATORY RESPONSE FORMAT (return valid JSON only):
 
     // Dynamically adjust max_tokens based on reasoning effort and prompt size
     const baseMaxTokens = APP_CONSTANTS.GROK_API.DEFAULT_CONFIG.max_tokens;
-    let maxTokens: number = baseMaxTokens;
-    if (reasoningEffort === 'low') {
-      maxTokens = Math.min(baseMaxTokens, 1500);
-    } else if (reasoningEffort === 'medium') {
-      maxTokens = Math.min(baseMaxTokens, 2000);
+    let maxTokens: number = maxTokensOverride || baseMaxTokens;
+    if (!maxTokensOverride) {
+      if (reasoningEffort === 'low') {
+        maxTokens = Math.min(baseMaxTokens, 1500);
+      } else if (reasoningEffort === 'medium') {
+        maxTokens = Math.min(baseMaxTokens, 2000);
+      }
     }
 
     const request: GrokRequest = {
@@ -890,18 +897,26 @@ RESPONSE FORMAT (JSON only):
    * Parse enhanced syllabus response
    */
   private parseEnhancedSyllabusResponse(
-    response: GrokResponse, 
+    response: GrokResponse,
     originalCourse: import('../../shared/interfaces/syllabus.models').CourseWithSyllabus
   ): import('../../shared/interfaces/data-models').EnhancedSyllabus {
     try {
       const message = response.choices[0]?.message;
       let text = message?.content;
-      
+
       if (!text || text === '') {
         text = (message as any)?.reasoning_content;
       }
-      
+
       if (!text) throw new Error('No response text received');
+
+      // Clean and extract JSON from response (same as other parsers)
+      text = this.extractAndCleanJSON(text);
+
+      if (!text) {
+        console.log('No valid JSON found in enhanced syllabus response, using defaults');
+        throw new Error('Invalid enhanced syllabus response format');
+      }
 
       const parsed = JSON.parse(text);
       
@@ -949,7 +964,7 @@ RESPONSE FORMAT (JSON only):
         if (!text || text === '') {
           text = (message as any)?.reasoning_content;
           if (text) {
-            console.log('📝 Using reasoning_content field for API test');
+            console.log('[AI] Using reasoning_content field for API test');
           }
         }
         

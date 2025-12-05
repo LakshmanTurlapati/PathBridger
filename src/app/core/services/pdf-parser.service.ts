@@ -6,6 +6,7 @@ import { CourseWithSyllabus, SyllabusContent, WeeklySchedule } from '../../share
 import { APP_CONSTANTS } from '../../shared/constants/app-constants';
 import { AiClientService } from './ai-client.service';
 import { SettingsService } from './settings.service';
+import { NotificationService } from './notification.service';
 
 // Configure PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs`;
@@ -17,7 +18,8 @@ export class PdfParserService {
 
   constructor(
     private aiClient: AiClientService,
-    private settingsService: SettingsService
+    private settingsService: SettingsService,
+    private notificationService: NotificationService
   ) {}
 
   /**
@@ -85,52 +87,18 @@ export class PdfParserService {
       console.log('PDF loaded successfully');
       console.log('- Pages:', pdfDocument.numPages);
 
-      // Extract text from all pages with improved line break detection
+      // Extract text from all pages - simplified extraction, AI will handle formatting
       let fullText = '';
       for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
         const page = await pdfDocument.getPage(pageNum);
         const textContent = await page.getTextContent();
 
-        // CRITICAL FIX: Sort text items spatially before processing
-        // This ensures proper reading order for multi-column layouts
-
-        // Step 1: Detect columns by analyzing X-position distribution
-        const xPositions = (textContent.items as any[])
-          .filter((item: any) => item.str && item.str.trim().length > 0)
-          .map((item: any) => item.transform[4]);
-
-        const hasMultipleColumns = this.detectColumns(xPositions);
-
-        // Step 2: Sort items based on column detection
-        const sortedItems = (textContent.items as any[]).sort((a, b) => {
-          const yDiff = Math.abs(b.transform[5] - a.transform[5]);
-
-          if (hasMultipleColumns) {
-            // For multi-column: group by rows first, then sort within rows
-            // Use larger Y threshold to group rows across columns
-            if (yDiff > 15) {
-              return b.transform[5] - a.transform[5]; // Sort by Y (top to bottom)
-            }
-            // Same row, sort by X (left to right - this reads columns naturally)
-            return a.transform[4] - b.transform[4];
-          } else {
-            // Single column: standard top-to-bottom, left-to-right
-            if (yDiff > 5) {
-              return b.transform[5] - a.transform[5];
-            }
-            return a.transform[4] - b.transform[4];
-          }
-        });
-
-        // Build text with proper line breaks and word spacing
+        // Simple extraction - let AI handle column detection and formatting
         let pageText = '';
         let lastY = -1;
-        let lastX = -1;
 
-        for (let i = 0; i < sortedItems.length; i++) {
-          const item: any = sortedItems[i];
-          const currentY = item.transform[5]; // Y position
-          const currentX = item.transform[4]; // X position
+        for (const item of textContent.items as any[]) {
+          const currentY = item.transform[5];
           const itemText = item.str;
 
           // Skip empty items
@@ -138,22 +106,13 @@ export class PdfParserService {
             continue;
           }
 
-          // If Y position changed significantly, it's a new line
+          // Add newline when Y position changes significantly
           if (lastY !== -1 && Math.abs(currentY - lastY) > 5) {
             pageText += '\n';
-            lastX = -1; // Reset X tracking for new line
-          } else if (i > 0 && lastX !== -1) {
-            // Same line - check X distance to determine if we need a space
-            const xDistance = Math.abs(currentX - lastX);
-            // Only add space if items are reasonably far apart (not part of same word)
-            if (xDistance > 1) {
-              pageText += ' ';
-            }
           }
 
-          pageText += itemText;
+          pageText += itemText + ' ';
           lastY = currentY;
-          lastX = currentX + (item.width || 0); // Update X to end of current item
         }
 
         fullText += pageText + '\n\n'; // Double newline between pages
@@ -190,11 +149,21 @@ export class PdfParserService {
 
   /**
    * Extracts a single course with full syllabus data from PDF text
-   * Uses hybrid approach: pattern-based extraction with AI fallback
+   * Uses hybrid approach: AI text cleanup + pattern-based extraction with AI fallback
    */
-  private extractCourseFromPdf(text: string, fileName: string): Observable<CourseWithSyllabus> {
+  private extractCourseFromPdf(rawText: string, fileName: string): Observable<CourseWithSyllabus> {
     console.log('\n=== EXTRACTING COURSE DATA FROM PDF ===');
 
+    // First, clean the text with AI to fix formatting issues
+    return this.cleanTextWithAI(rawText).pipe(
+      switchMap(text => this.extractCourseFromCleanedText(text, rawText, fileName))
+    );
+  }
+
+  /**
+   * Extract course data from cleaned text
+   */
+  private extractCourseFromCleanedText(text: string, rawText: string, fileName: string): Observable<CourseWithSyllabus> {
     // Extract basic course information (synchronous)
     const courseCode = this.extractCourseCode(text, fileName);
     console.log('1. Course Code:', courseCode);
@@ -214,13 +183,7 @@ export class PdfParserService {
     const prerequisites = this.extractPrerequisites(text);
     console.log('6. Prerequisites:', prerequisites);
 
-    // Extract syllabus-specific data (pattern-based first)
-    let weeklySchedule = this.extractWeeklySchedule(text);
-    console.log('7. Weekly Schedule Entries:', weeklySchedule.length);
-    if (weeklySchedule.length > 0) {
-      console.log('   First entry:', weeklySchedule[0]);
-    }
-
+    // Extract key topics and learning objectives (pattern-based)
     let keyTopics = this.extractKeyTopics(text);
     console.log('8. Key Topics:', keyTopics.length);
 
@@ -233,25 +196,34 @@ export class PdfParserService {
     const category = this.extractCategory(text, courseCode);
     console.log('11. Category:', category);
 
-    // Validate extraction results
-    const isValid = this.validateExtraction(weeklySchedule, keyTopics);
-    console.log('12. Validation:', isValid ? 'PASSED' : 'FAILED - Using AI fallback');
+    // Use AI for weekly schedule extraction (more reliable than patterns)
+    // Pass rawText to ensure schedule tables aren't truncated by AI cleanup
+    return this.extractWeeklyScheduleWithAI(rawText).pipe(
+      switchMap(weeklySchedule => {
+        console.log('7. Weekly Schedule Entries:', weeklySchedule.length);
+        if (weeklySchedule.length > 0) {
+          console.log('   First entry:', weeklySchedule[0]);
+        }
 
-    // If validation fails, use AI extraction
-    const extractionObservable = !isValid
-      ? this.extractWithAI(text, courseCode, title).pipe(
-          map(aiResult => {
-            console.log('   AI fallback complete, merging results...');
-            return {
-              weeklySchedule: aiResult.weeklySchedule.length > 0 ? aiResult.weeklySchedule : weeklySchedule,
-              keyTopics: aiResult.keyTopics.length > 0 ? aiResult.keyTopics : keyTopics,
-              learningObjectives: aiResult.learningObjectives || learningObjectives
-            };
-          })
-        )
-      : of({ weeklySchedule, keyTopics, learningObjectives });
+        // Validate and use AI fallback for topics/objectives if needed
+        const needsAIFallback = keyTopics.length === 0 || learningObjectives?.length === 0;
+        console.log('12. Validation:', !needsAIFallback ? 'PASSED' : 'Using AI for topics/objectives');
 
-    return extractionObservable.pipe(
+        const extractionObservable = needsAIFallback
+          ? this.extractWithAI(text, courseCode, title).pipe(
+              map(aiResult => {
+                console.log('   AI fallback complete, merging results...');
+                return {
+                  weeklySchedule: weeklySchedule.length > 0 ? weeklySchedule : aiResult.weeklySchedule,
+                  keyTopics: aiResult.keyTopics.length > 0 ? aiResult.keyTopics : keyTopics,
+                  learningObjectives: aiResult.learningObjectives || learningObjectives
+                };
+              })
+            )
+          : of({ weeklySchedule, keyTopics, learningObjectives });
+
+        return extractionObservable;
+      }),
       map(extracted => {
         console.log('=== FINAL EXTRACTION RESULTS ===');
         console.log('   Weekly Schedule:', extracted.weeklySchedule.length);
@@ -265,7 +237,7 @@ export class PdfParserService {
           courseNumber: courseCode,
           courseTitle: title,
           category: category,
-          rawContent: text,
+          rawContent: rawText, // Store original raw text, not AI-cleaned version
           weeklySchedule: extracted.weeklySchedule,
           keyTopics: extracted.keyTopics,
           learningObjectives: extracted.learningObjectives,
@@ -358,12 +330,24 @@ export class PdfParserService {
       return title;
     }
 
+    // Try pattern: Title on line after course code (newline separated)
+    const titlePattern3 = /(?:MIS|HMGT|BUAN|CS|SE)\s+\d{4}[.\d]*\s*\n\s*([A-Za-z][A-Za-z\s&\-,]+?)(?:\s*\n|\s+(?:Fall|Spring|Summer))/i;
+    match = text.match(titlePattern3);
+
+    if (match && match[1]) {
+      let title = match[1].trim();
+      title = title.replace(/\s+/g, ' ');
+      console.log(`   Found from line after course code: ${title}`);
+      return title;
+    }
+
     // Fall back to filename
     const fileTitleMatch = fileName.match(/_([A-Za-z]+(?:[A-Z][a-z]+)*)\./);
     if (fileTitleMatch) {
-      // Convert camelCase to spaced words
+      // Convert camelCase to spaced words (preserves acronyms like IT, AI, ML)
       return fileTitleMatch[1]
-        .replace(/([A-Z])/g, ' $1')
+        .replace(/([a-z])([A-Z])/g, '$1 $2')  // Split lowercase-to-uppercase
+        .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')  // Split acronym followed by word
         .trim();
     }
 
@@ -959,6 +943,57 @@ export class PdfParserService {
   }
 
   /**
+   * AI-assisted text cleanup for raw PDF extraction
+   * Fixes formatting issues, handles multi-column layouts, removes noise
+   */
+  private cleanTextWithAI(rawText: string): Observable<string> {
+    const apiKey = this.settingsService.getGrokApiKey();
+
+    if (!apiKey) {
+      console.log('   AI text cleanup skipped: No API key');
+      return of(rawText);
+    }
+
+    console.log('   Cleaning PDF text with AI...');
+
+    // Limit text to avoid token limits
+    const textLimit = 30000;
+    const truncatedText = rawText.length > textLimit
+      ? rawText.substring(0, textLimit) + '\n\n[Content truncated]'
+      : rawText;
+
+    const prompt = `Clean and restructure this raw PDF text extraction. The text may have formatting issues from PDF parsing.
+
+Fix these issues:
+- Merge words/sentences that were split across line breaks
+- Organize multi-column content into logical reading order (read left column fully, then right column)
+- Remove repeated page headers/footers
+- Preserve section structure (headings, numbered lists, schedules, tables)
+- Keep ALL content - just improve readability and structure
+
+Raw PDF text:
+${truncatedText}
+
+Return ONLY the cleaned text, no explanations or formatting markers.`;
+
+    return this.aiClient['callGrokApi'](prompt, apiKey, 'medium').pipe(
+      map((response: any) => {
+        const content = response.choices?.[0]?.message?.content;
+        if (content && content.length > 100) {
+          console.log('   AI text cleanup complete:', content.length, 'chars');
+          return content;
+        }
+        console.warn('   AI text cleanup returned empty, using original');
+        return rawText;
+      }),
+      catchError(error => {
+        console.error('   AI text cleanup failed:', error);
+        return of(rawText);
+      })
+    );
+  }
+
+  /**
    * AI-assisted extraction fallback for complex or non-standard PDF formats
    * Uses Claude API to intelligently extract structured syllabus data
    */
@@ -971,13 +1006,17 @@ export class PdfParserService {
 
     if (!apiKey) {
       console.warn('   AI extraction skipped: No API key configured');
+      this.notificationService.showWarning(
+        'PDF extraction limited: Configure Grok API key in settings for better results',
+        { duration: 6000 }
+      );
       return of({ weeklySchedule: [], keyTopics: [], learningObjectives: undefined });
     }
 
     console.log('   Using AI-assisted extraction...');
 
-    // Increased from 8,000 to 25,000 characters to capture more content
-    // This ensures later weeks (e.g., Week 10+) are included in AI processing
+    // Limit to 25,000 characters to avoid AI response truncation
+    // (max_tokens is 1024, larger input leaves less room for complete JSON output)
     const textLimit = 25000;
     const truncatedText = pdfText.length > textLimit
       ? pdfText.substring(0, textLimit) + '\n\n[Content truncated for length]'
@@ -1059,6 +1098,117 @@ Return ONLY the JSON, no markdown formatting, no explanations.`;
   }
 
   /**
+   * AI-based weekly schedule extraction - primary method for schedule extraction
+   * Handles any format: Week N, Module N, Session N, date-based, etc.
+   */
+  private extractWeeklyScheduleWithAI(text: string): Observable<WeeklySchedule[]> {
+    const apiKey = this.settingsService.getGrokApiKey();
+    if (!apiKey) {
+      console.log('   AI schedule extraction skipped: No API key, using pattern extraction');
+      return of(this.extractWeeklySchedule(text));
+    }
+
+    console.log('   Extracting weekly schedule with AI...');
+
+    // Use the raw text to ensure schedule tables aren't lost
+    const truncatedText = text.substring(0, 25000);
+
+    const prompt = `Extract the course schedule/outline from this syllabus text.
+
+Syllabus text:
+${truncatedText}
+
+Return a JSON array of schedule entries. Handle ANY format (Week N, Module N, Session N, dates, etc.):
+
+[
+  {"week": 1, "date": "Aug 26", "topics": ["Topic 1", "Topic 2"], "assignments": "HW 1 due"},
+  {"week": 2, "date": "Sep 2", "topics": ["Topic 3"], "assignments": null}
+]
+
+Rules:
+- week: Sequential number (1, 2, 3...) based on the syllabus order
+- date: The date if mentioned, otherwise "Week N" or "Module N"
+- topics: Array of topics/subjects covered that week (be specific, extract actual content)
+- assignments: Any homework, readings, case studies, quizzes due (null if none)
+
+Look for schedule tables, course outlines, class calendars, or any section listing what will be covered each week/session.
+
+Return ONLY valid JSON array. If no schedule found, return [].`;
+
+    // Use 4096 tokens for schedule extraction to avoid truncation (default 1024 is too small for 16-week schedules)
+    return this.aiClient['callGrokApi'](prompt, apiKey, 'high', 4096).pipe(
+      map((response: any) => {
+        try {
+          const content = response.choices?.[0]?.message?.content || '[]';
+          // Find JSON array in response
+          const jsonMatch = content.match(/\[[\s\S]*\]/);
+          if (!jsonMatch) {
+            console.log('   No JSON array found in AI response');
+            return [];
+          }
+
+          let jsonText = jsonMatch[0];
+
+          // Try to repair truncated JSON by closing open brackets
+          let schedule;
+          try {
+            schedule = JSON.parse(jsonText);
+          } catch {
+            console.log('   Attempting to repair truncated JSON...');
+            // Count open/close brackets and try to fix
+            const openBrackets = (jsonText.match(/\[/g) || []).length;
+            const closeBrackets = (jsonText.match(/\]/g) || []).length;
+            const openBraces = (jsonText.match(/\{/g) || []).length;
+            const closeBraces = (jsonText.match(/\}/g) || []).length;
+
+            // Remove incomplete last entry (likely truncated)
+            jsonText = jsonText.replace(/,\s*\{[^}]*$/, '');
+
+            // Add missing closing brackets
+            jsonText += '}'.repeat(Math.max(0, openBraces - closeBraces));
+            jsonText += ']'.repeat(Math.max(0, openBrackets - closeBrackets));
+
+            // Remove trailing comma before closing bracket
+            jsonText = jsonText.replace(/,\s*\]/g, ']');
+            jsonText = jsonText.replace(/,\s*\}/g, '}');
+
+            schedule = JSON.parse(jsonText);
+            console.log('   JSON repair successful');
+          }
+
+          console.log(`   AI extracted ${schedule.length} schedule entries`);
+
+          // Validate and normalize the schedule
+          return schedule.map((entry: any, index: number) => ({
+            week: entry.week || index + 1,
+            date: entry.date || `Week ${entry.week || index + 1}`,
+            topics: Array.isArray(entry.topics) ? entry.topics : [entry.topics].filter(Boolean),
+            assignments: entry.assignments || undefined
+          }));
+        } catch (e) {
+          console.warn('   AI schedule extraction parsing failed, trying pattern extraction:', e);
+          // FALLBACK: Use pattern-based extraction when JSON parsing fails
+          const patternSchedule = this.extractWeeklySchedule(text);
+          if (patternSchedule.length > 0) {
+            console.log(`   Pattern extraction found ${patternSchedule.length} weeks`);
+            return patternSchedule;
+          }
+          return [];
+        }
+      }),
+      catchError(error => {
+        console.warn('   AI schedule extraction failed, falling back to pattern extraction:', error.message || error);
+        // FALLBACK: Use pattern-based extraction instead of returning empty
+        const patternSchedule = this.extractWeeklySchedule(text);
+        if (patternSchedule.length > 0) {
+          console.log(`   Pattern extraction found ${patternSchedule.length} weeks`);
+        }
+        return of(patternSchedule);
+      })
+    );
+  }
+
+  /**
    * Detects if PDF content uses multiple columns based on X-position distribution
    */
   private detectColumns(xPositions: number[]): boolean {
@@ -1100,9 +1250,10 @@ Return ONLY the JSON, no markdown formatting, no explanations.`;
     const hasTopics = keyTopics.length > 0;
 
     // Enhanced validation: check for sequential week numbers
+    // Relaxed threshold from 3 to 5 to support modular/accelerated courses
     if (hasSchedule && weeklySchedule.length > 2) {
       const weeks = weeklySchedule.map(w => w.week).sort((a, b) => a - b);
-      const hasGaps = weeks.some((week, i) => i > 0 && week - weeks[i - 1] > 3);
+      const hasGaps = weeks.some((week, i) => i > 0 && week - weeks[i - 1] > 5);
       const hasDuplicates = new Set(weeks).size !== weeks.length;
 
       if (hasGaps || hasDuplicates) {

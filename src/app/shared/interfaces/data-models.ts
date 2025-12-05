@@ -6,12 +6,13 @@ export interface JobTitle {
   description?: string;
   skills?: string[];
   trends?: string;
-  source?: 'live' | 'cached' | 'manual';
+  source?: 'live' | 'cached' | 'manual' | 'default';
   averageSalary?: string;
   experienceLevel?: 'entry' | 'mid' | 'senior' | 'lead';
   company?: string;  // Company name or "Various" for aggregated data
   location?: string; // Job location (optional)
   fetchedAt?: string; // Timestamp when data was fetched
+  sourceUrl?: string; // URL where job info was sourced from
 }
 
 export interface Course {
